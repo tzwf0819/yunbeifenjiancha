@@ -9,7 +9,7 @@ const CONFIG_PATH = path.join(__dirname, 'config.json');
 // --- 配置管理 ---
 const loadConfig = () => {
     if (!fs.existsSync(CONFIG_PATH)) {
-        return { buckets: [] }; // 返回一个带空数组的默认对象
+        return { buckets: [] };
     }
     const fileContent = fs.readFileSync(CONFIG_PATH, 'utf8');
     return fileContent ? JSON.parse(fileContent) : { buckets: [] };
@@ -32,26 +32,29 @@ const getObsClient = () => {
     });
 };
 
-// 检查单个存储桶
 const checkBucket = async (obsClient, bucketName) => {
     try {
         const result = await obsClient.listObjects({ Bucket: bucketName, MaxKeys: 1 });
         if (result.CommonMsg.Status < 300 && result.InterfaceResult.Contents.length > 0) {
             const latestFile = result.InterfaceResult.Contents[0];
-            return { status: '正常', reason: '获取到最新文件', latest_time: latestFile.LastModified };
-        } else if (result.InterfaceResult.Contents.length === 0) {
-            return { status: '异常', reason: '桶内无文件', latest_time: 'N/A' };
+            return {
+                status: '正常',
+                reason: '获取到最新文件',
+                latest_time: latestFile.LastModified,
+                latest_file_name: latestFile.Key
+            };
+        } else {
+            return { status: '异常', reason: '桶内无文件', latest_time: 'N/A', latest_file_name: 'N/A' };
         }
     } catch (error) {
         console.error(`检查桶 ${bucketName} 失败:`, error);
-        return { status: '异常', reason: `检查失败: ${error.message}`, latest_time: 'N/A' };
+        return { status: '异常', reason: `检查失败: ${error.message}`, latest_time: 'N/A', latest_file_name: 'N/A' };
     }
 };
 
-// 获取所有桶的状态 (用于Dashboard)
 const getBucketStatus = async () => {
     const config = loadConfig();
-    const obsClient = getObsClient(); // 这会顺便检查配置是否存在
+    const obsClient = getObsClient();
     const review_results = [];
 
     if (!config.buckets || config.buckets.length === 0) {
@@ -63,7 +66,6 @@ const getBucketStatus = async () => {
         review_results.push({ bucket_name: bucket.name, ...result });
     }
 
-    // 检查付费到期
     const expired_buckets = checkPaymentDates(config.buckets);
 
     return {
@@ -73,7 +75,6 @@ const getBucketStatus = async () => {
     };
 };
 
-// 检查付费日期
 const checkPaymentDates = (buckets) => {
     const today = new Date();
     const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
@@ -106,8 +107,6 @@ const sendWechatMessage = async (token, content, agentId, touser) => {
         msgtype: "markdown",
         agentid: agentId,
         markdown: { content },
-        enable_duplicate_check: 0,
-        duplicate_check_interval: 1800
     });
 };
 
@@ -115,20 +114,36 @@ const sendWechatMessage = async (token, content, agentId, touser) => {
 const runScheduledReport = async () => {
     const config = loadConfig();
     if (!config.wechat_app || !config.wechat_app.corp_id || !config.wechat_app.secret) {
-        throw new Error('企业微信配置不完整！');
+        console.log("企业微信配置不完整，跳过发送报告。");
+        return; // 静默处理，不报错
     }
 
     const { review_results, expired_buckets } = await getBucketStatus();
 
-    let markdownContent = `**OBS每日巡检报告 - ${new Date().toLocaleDateString()}**\n\n`
-    markdownContent += '> **巡检结果**:\n';
-    review_results.forEach(r => {
-        const color = r.status === '正常' ? 'info' : 'warning';
-        markdownContent += `> - <font color="${color}">${r.bucket_name}: ${r.status}</font> (${r.reason})\n`;
-    });
+    const hasAbnormal = review_results.some(r => r.status === '异常');
+    const hasExpired = expired_buckets.length > 0;
 
-    if (expired_buckets.length > 0) {
-        markdownContent += '\n> **<font color="warning">即将到期提醒</font>**:\n';
+    // "无事不打扰" 逻辑：只在有异常或有到期时才发送通知
+    if (!hasAbnormal && !hasExpired) {
+        console.log("所有桶均正常，且无到期提醒。本次不发送企业微信通知。");
+        return;
+    }
+
+    let markdownContent = `**OBS每日巡检报告 - ${new Date().toLocaleDateString()}**\n\n`;
+    
+    if (hasAbnormal) {
+        markdownContent += '> **<font color="warning">异常结果</font>**:\n';
+        review_results.filter(r => r.status === '异常').forEach(r => {
+            markdownContent += `> - **${r.bucket_name}**: <font color="warning">${r.status}</font> (${r.reason})\n`;
+        });
+    }
+    
+    if(hasAbnormal && !hasExpired) {
+        markdownContent += '\n> **其他桶状态**: <font color="info">正常</font>\n';
+    }
+
+    if (hasExpired) {
+        markdownContent += '\n> **<font color="warning">续费提醒</font>**:\n';
         expired_buckets.forEach(b => {
             markdownContent += `> - 存储桶 **${b}** 的包年服务即将到期，请提醒客户续费！\n`;
         });
@@ -136,6 +151,7 @@ const runScheduledReport = async () => {
 
     const token = await getWechatToken(config.wechat_app.corp_id, config.wechat_app.secret);
     await sendWechatMessage(token, markdownContent, config.wechat_app.agent_id, config.wechat_app.touser);
+    console.log("已发送包含异常/到期信息的企业微信通知。");
 };
 
 module.exports = { loadConfig, saveConfig, getBucketStatus, runScheduledReport };
