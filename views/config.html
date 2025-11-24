@@ -3,129 +3,48 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>后台配置 - OBS监控</title>
+    <title>巡视任务配置中心</title>
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .bucket-list { display: flex; flex-direction: column; gap: 20px; }
+        .bucket-card { border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f9f9f9; }
+        .bucket-card h3 { margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+        .item-table { width: 100%; margin-top: 10px; border-collapse: collapse; }
+        .item-table th, .item-table td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+        .item-table input, .item-table select { width: 95%; }
+        .danger-btn { background-color: #e74c3c; color: white; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>后台配置</h1>
+        <h1>巡视任务配置中心</h1>
         
         <fieldset>
             <legend>全局配置</legend>
-             <div class="grid-container">
-                <div class="form-group">
-                    <label for="obs-ak">华为云OBS AK:</label>
-                    <input type="text" id="obs-ak" name="ak">
-                </div>
-                <div class="form-group">
-                    <label for="obs-sk">华为云OBS SK:</label>
-                    <input type="password" id="obs-sk" name="sk">
-                </div>
-                <div class="form-group">
-                    <label for="obs-endpoint">华为云OBS Endpoint:</label>
-                    <input type="text" id="obs-endpoint" name="endpoint">
-                </div>
-                 <div class="form-group">
-                    <label for="wechat-corp-id">企业微信 CorpID:</label>
-                    <input type="text" id="wechat-corp-id" name="corp_id">
-                </div>
-                <div class="form-group">
-                    <label for="wechat-agent-id">企业微信 AgentID:</label>
-                    <input type="text" id="wechat-agent-id" name="agent_id">
-                </div>
-                <div class="form-group">
-                    <label for="wechat-secret">企业微信 Secret:</label>
-                    <input type="password" id="wechat-secret" name="secret">
-                </div>
-                <div class="form-group">
-                    <label for="wechat-touser">接收用户 ToUser:</label>
-                    <input type="text" id="wechat-touser" name="touser">
-                </div>
+            <div class="grid-container">
+                <div class="form-group"><label for="obs-ak">华为云OBS AK:</label><input type="text" id="obs-ak"></div>
+                <div class="form-group"><label for="obs-sk">华为云OBS SK:</label><input type="password" id="obs-sk"></div>
+                <div class="form-group"><label for="obs-endpoint">华为云OBS Endpoint:</label><input type="text" id="obs-endpoint"></div>
+                <div class="form-group"><label for="wechat-corp-id">企业微信 CorpID:</label><input type="text" id="wechat-corp-id"></div>
+                <div class="form-group"><label for="wechat-agent-id">企业微信 AgentID:</label><input type="text" id="wechat-agent-id"></div>
+                <div class="form-group"><label for="wechat-secret">企业微信 Secret:</label><input type="password" id="wechat-secret"></div>
+                <div class="form-group"><label for="wechat-touser">接收用户 ToUser:</label><input type="text" id="wechat-touser"></div>
             </div>
         </fieldset>
 
         <fieldset>
-            <legend>存储桶列表</legend>
-            <table id="bucket-table">
-                <thead>
-                    <tr>
-                        <th>存储桶名称</th>
-                        <th>监控项数量</th>
-                        <th>付费到期日</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- JS动态生成 -->
-                </tbody>
-            </table>
-            <button type="button" id="add-bucket-btn" class="secondary-btn">+ 添加新存储桶</button>
+            <legend>存储桶巡视配置</legend>
+            <div id="bucket-list" class="bucket-list">
+                <!-- JS动态生成存储桶卡片 -->
+            </div>
+            <button type="button" id="add-bucket-card-btn" class="secondary-btn" style="margin-top: 15px;">+ 添加新的存储桶</button>
         </fieldset>
 
-        <button id="save-btn">保 存 全 部 配 置</button>
+        <button id="save-all-btn">保 存 全 部 配 置</button>
         <p id="message"></p>
         <a href="/dashboard">前往监控面板</a>
     </div>
 
-    <!-- 桶编辑模态框 (大) -->
-    <div id="bucket-modal" class="modal">
-        <div class="modal-content large">
-            <span class="close-btn">&times;</span>
-            <h3 id="modal-title">编辑存储桶</h3>
-            <input type="hidden" id="bucket-edit-index">
-            
-            <div class="grid-container">
-                <div class="form-group">
-                    <label for="bucket-name">存储桶名称:</label>
-                    <input type="text" id="bucket-name">
-                </div>
-                <div class="form-group">
-                    <label for="bucket-payment-due-date">付费到期日:</label>
-                    <input type="date" id="bucket-payment-due-date">
-                </div>
-            </div>
-
-            <h4>监控项 (具体的备份文件)</h4>
-            <table id="monitored-items-table">
-                <thead>
-                    <tr>
-                        <th>备份文件名前缀</th>
-                        <th>备份计划</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-            <button type="button" id="add-item-btn" class="secondary-btn">+ 添加监控项</button>
-            <hr>
-            <button id=\"save-bucket-btn\">确认更改并关闭</button>
-        </div>
-    </div>
-
-    <!-- 监控项编辑模态框 (小) -->
-    <div id="item-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn-item">&times;</span>
-            <h3 id="item-modal-title">编辑监控项</h3>
-            <input type="hidden" id="item-edit-index">
-            <div class="form-group">
-                <label for="item-prefix">备份文件名前缀:</label>
-                <input type="text" id="item-prefix">
-                <small>例如: zhenyuan, 或 zyyinshua</small>
-            </div>
-            <div class="form-group">
-                <label for="item-schedule">备份计划:</label>
-                <select id="item-schedule">
-                    <option value="daily_1">每天 1 次</option>
-                    <option value="daily_2">每天 2 次</option>
-                    <option value="daily_3">每天 3 次</option>
-                    <option value="hourly_1">每小时 1 次</option>
-                </select>
-            </div>
-            <button id="save-item-btn">保存</button>
-        </div>
-    </div>
-
-    <script src="/js/config.js"></script>
+    <script src="/js/config-refactored.js"></script>
 </body>
 </html>
