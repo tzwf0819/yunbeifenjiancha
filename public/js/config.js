@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         if (!bucketData.name) { alert('存储桶名称不能为空！'); return; }
 
-        if (!currentConfig.buckets) { // **BUG FIX**: Initialize buckets array if it doesn't exist
+        if (!currentConfig.buckets) {
             currentConfig.buckets = [];
         }
 
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         closeModal();
     });
 
-    // --- Main Save Button ---
+    // --- Main Save Button & Run Check Logic ---
     document.getElementById('save-btn').addEventListener('click', async () => {
         const finalConfig = {
             huawei_obs: {
@@ -150,17 +150,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         try {
-            const response = await fetch('/api/config', {
+            // 1. 保存配置
+            message.textContent = '正在保存配置...';
+            message.className = '';
+            const saveResponse = await fetch('/api/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(finalConfig)
             });
-            if (response.status === 401) return window.location.href = '/login';
-            const result = await response.json();
-            message.textContent = result.success ? '保存成功！' : (result.message || '保存失败！');
-            message.className = result.success ? 'success-message' : 'error-message';
+            if (saveResponse.status === 401) return window.location.href = '/login';
+            const saveResult = await saveResponse.json();
+
+            if (!saveResult.success) {
+                throw new Error(saveResult.message || '保存失败');
+            }
+
+            // 2. 保存成功后，立即触发巡检
+            message.textContent = '配置保存成功！正在触发即时巡检，请稍候...';
+            message.className = 'success-message';
+
+            const checkResponse = await fetch('/api/run-check', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const checkResult = await checkResponse.json();
+            
+            if (checkResult.success) {
+                 message.textContent = `保存成功！${checkResult.message}`;
+                 message.className = 'success-message';
+            } else {
+                throw new Error(checkResult.message || '巡检触发失败');
+            }
+
         } catch (error) {
-            message.textContent = '发生网络错误，保存失败！';
+            message.textContent = `操作失败: ${error.message}`;
             message.className = 'error-message';
         }
     });

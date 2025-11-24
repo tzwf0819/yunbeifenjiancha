@@ -60,6 +60,18 @@ app.post('/api/config', authMiddleware, (req, res) => {
     }
 });
 
+// 新增：手动触发巡检的API
+app.post('/api/run-check', authMiddleware, async (req, res) => {
+    try {
+        console.log(`[${new Date().toLocaleString()}] 手动触发巡检任务...`);
+        await core.runScheduledReport();
+        res.json({ success: true, message: '巡检报告已成功发送！' });
+    } catch (error) {
+        console.error('手动巡检失败:', error);
+        res.status(500).json({ success: false, message: `巡检失败: ${error.message}` });
+    }
+});
+
 app.get('/dashboard', async (req, res) => {
     try {
         const data = await core.getBucketStatus();
