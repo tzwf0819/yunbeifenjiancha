@@ -1,0 +1,49 @@
+{
+    "special_buckets": [
+        "xingyao-yida",
+        "shengnuozhiban",
+        "haiyuan-yida",
+        "tairong",
+        "xingchen-yida",
+        "longsheng",
+        "lucheng",
+        "junhang",
+        "chutian-yida",
+        "kunhou",
+        "liya"
+    ],
+    "bucket_schedules": {
+        "xingyao-yida": {"frequency": "daily", "count": 1},
+        "shengnuozhiban": {"frequency": "daily", "count": 3},
+        "haiyuan-yida": {"frequency": "daily", "count": 3},
+        "tairong": {"frequency": "daily", "count": 2},
+        "xingchen-yida": {"frequency": "daily", "count": 3},
+        "longsheng": {"frequency": "daily", "count": 1},
+        "lucheng": {"frequency": "hourly", "count": 24},
+        "junhang": {"frequency": "daily", "count": 2},
+        "chutian-yida": {"frequency": "daily", "count": 2},
+        "kunhou": {"frequency": "daily", "count": 1},
+        "liya": {"frequency": "daily", "count": 1}
+    },
+    "bucket_payment_dates": {
+        "xingyao-yida": "2024-11-11",
+        "shengnuozhiban": "2025-2-27",
+        "haiyuan-yida": "2025-2-27",
+        "tairong": "2025-3-5",
+        "xingchen-yida": "2025-3-9",
+        "longsheng": "2025-3-17",
+        "lucheng": "2025-3-24",
+        "junhang": "2025-3-25",
+        "chutian-yida": "2025-4-1",
+        "kunhou": "2025-7-8",
+        "liya": "2025-7-9"
+    },
+    "wechat_app": {
+        "corp_id": "ww70c10ba506f8a96f",
+        "agent_id": 1000003,
+        "secret": "aRAWS8Fw1LPnyn7QCsFjsdS29dhY6p4DynQFVXjGZP4",
+        "touser": "WeiShaoYan",
+        "toparty": "",
+        "totag": ""
+    }
+}
