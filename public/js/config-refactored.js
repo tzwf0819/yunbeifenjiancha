@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <button type="button" class="delete-bucket-btn danger-btn">删除此桶</button>
             </h3>
             <div class="form-group">
-                <label>付费到期日:</label>
+                <label>缴费日期:</label>
                 <input type="date" class="bucket-payment-due-date" value="${bucket.payment_due_date || ''}">
             </div>
             <table class="item-table">
@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <tr>
                         <th>备份文件名前缀</th>
                         <th>备份计划</th>
+                        <th>保留最新3个</th>
                         <th style="width: 50px;">操作</th>
                     </tr>
                 </thead>
@@ -73,6 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <option value="hourly_1" ${item.schedule === 'hourly_1' ? 'selected' : ''}>每小时 1 次</option>
                                 </select>
                             </td>
+                            <td><input type="checkbox" class="item-retain" ${item.retain_latest_3 ? 'checked' : ''}></td>
                             <td><button type="button" class="delete-item-btn danger-btn">-</button></td>
                         </tr>
                     `).join('')}
@@ -113,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!currentConfig.buckets[bucketIndex].items) {
                 currentConfig.buckets[bucketIndex].items = [];
             }
-            currentConfig.buckets[bucketIndex].items.push({ prefix: '', schedule: 'daily_1' });
+            currentConfig.buckets[bucketIndex].items.push({ prefix: '', schedule: 'daily_1', retain_latest_3: false });
             renderAllBucketCards();
         }
 
@@ -125,11 +127,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('save-all-btn').addEventListener('click', async () => {
-        // Collect data from the DOM
         const newBuckets = [];
         document.querySelectorAll('.bucket-card').forEach(card => {
             const bucketName = card.querySelector('.bucket-name-input').value.trim();
-            if (!bucketName) return; 
+            if (!bucketName) return;
 
             const items = [];
             card.querySelectorAll('.item-table tbody tr').forEach(row => {
@@ -137,7 +138,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (prefix) {
                     items.push({
                         prefix: prefix,
-                        schedule: row.querySelector('.item-schedule').value
+                        schedule: row.querySelector('.item-schedule').value,
+                        retain_latest_3: row.querySelector('.item-retain').checked
                     });
                 }
             });
@@ -173,7 +175,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const result = await response.json();
             message.textContent = result.success ? '保存成功！' : (result.message || '保存失败！');
             message.className = result.success ? 'success-message' : 'error-message';
-            // Reload to reflect saved state
             fetchConfig();
         } catch (error) {
             message.textContent = `保存失败: ${error.message}`;

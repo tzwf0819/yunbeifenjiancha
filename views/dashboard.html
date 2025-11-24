@@ -5,6 +5,22 @@
     <meta charset="UTF-8">
     <title>监控面板 - OBS监控</title>
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .collapsible {
+            background-color: #f1f1f1;
+            cursor: pointer;
+            padding: 18px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+            margin-top: 20px;
+        }
+        .collapsible:hover { background-color: #ddd; }
+        .content { padding: 0 18px; display: none; overflow: hidden; background-color: #f9f9f9; }
+        .file-table { width: 100%; margin-top: 10px; }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -17,12 +33,7 @@
         </div>
         <p id="message">最后更新时间：{{last_updated}}</p>
         
-        {{#error}}
-            <div class="error-box">
-                <h2>错误</h2>
-                <p>{{error}}</p>
-            </div>
-        {{/error}}
+        {{#error}}<div class="error-box"><h2>错误</h2><p>{{error}}</p></div>{{/error}}
 
         <h2>巡检结果 (按备份项)</h2>
         <table>
@@ -33,6 +44,7 @@
                     <th>状态</th>
                     <th>最新文件名</th>
                     <th>最新文件时间</th>
+                    <th>缴费日期</th>
                     <th>原因</th>
                 </tr>
             </thead>
@@ -44,29 +56,52 @@
                     <td class="{{status}}">{{status}}</td>
                     <td>{{latest_file_name}}</td>
                     <td>{{latest_time}}</td>
+                    <td>{{payment_due_date}}</td>
                     <td>{{reason}}</td>
                 </tr>
                 {{/review_results}}
             </tbody>
         </table>
 
-        <h2>到期提醒</h2>
+        <h2>到期提醒 (30天内)</h2>
         <table>
              <thead>
-                <tr>
-                    <th>存储桶名称</th>
-                </tr>
+                <tr><th>存储桶名称</th><th>到期日</th></tr>
             </thead>
             <tbody>
                 {{#expired_buckets}}
-                <tr>
-                    <td>{{.}}</td>
-                </tr>
+                <tr><td>{{name}}</td><td>{{date}}</td></tr>
                 {{/expired_buckets}}
             </tbody>
         </table>
 
+        <button type="button" class="collapsible">展开/折叠 桶内文件全景</button>
+        <div class="content">
+            {{#all_bucket_files}}
+            <h3>{{bucket_name}}</h3>
+            <table class="file-table">
+                <thead><tr><th>文件名</th><th>上传时间</th><th>大小</th></tr></thead>
+                <tbody>
+                    {{#files}}
+                    <tr><td>{{name}}</td><td>{{time}}</td><td>{{size}}</td></tr>
+                    {{/files}}
+                </tbody>
+            </table>
+            {{/all_bucket_files}}
+        </div>
+
     </div>
     <script src="/js/dashboard.js"></script>
+    <script>
+        document.querySelector('.collapsible').addEventListener('click', function() {
+            this.classList.toggle('active');
+            var content = this.nextElementSibling;
+            if (content.style.display === "block") {
+                content.style.display = "none";
+            } else {
+                content.style.display = "block";
+            }
+        });
+    </script>
 </body>
 </html>
