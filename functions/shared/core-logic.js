@@ -4,15 +4,16 @@ const fs = require('fs');
 const path = require('path');
 
 // 从云函数配置中加载配置，这里用模拟的JSON，实际部署时应从云函数环境变量或tcb.json中读取
-function loadConfig() {
+const tcb = require('tcb-admin-node');
+
+async function loadConfig() {
     try {
-        // 在云函数环境中，我们从环境变量或配置文件中获取
-        // 这里暂时模拟从本地文件读取，以便本地测试
-        const configPath = path.resolve(__dirname, '../config.json');
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-        return config;
+        const app = tcb.init({ env: tcb.getCurrentEnv().envId });
+        const db = app.database();
+        const config = await db.collection('system_config').doc('default_config').get();
+        return config.data[0] || {};
     } catch (error) {
-        console.warn('无法加载配置文件，将使用空配置', error);
+        console.error('从云数据库加载配置失败', error);
         return {};
     }
 }

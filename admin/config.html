@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统配置管理</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f7f9; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        h1 { color: #333; }
+        h2 { color: #555; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 30px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #666; }
+        input[type="text"], input[type="password"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        textarea { min-height: 120px; resize: vertical; }
+        button { padding: 12px 20px; background-color: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #218838; }
+        #message { margin-top: 20px; padding: 10px; border-radius: 4px; display: none; }
+        #message.success { background-color: #d4edda; color: #155724; }
+        #message.error { background-color: #f8d7da; color: #721c24; }
+        .logout-btn { background-color: #dc3545; float: right; }
+        .logout-btn:hover { background-color: #c82333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button id="logout-btn" class="logout-btn">退出登录</button>
+        <h1>系统配置管理</h1>
+        <form id="config-form">
+            <h2>OBS 配置</h2>
+            <div class="form-group">
+                <label for="access_key">Access Key</label>
+                <input type="text" id="access_key" name="access_key" required>
+            </div>
+            <div class="form-group">
+                <label for="secret_key">Secret Key</label>
+                <input type="password" id="secret_key" name="secret_key" required>
+            </div>
+            <div class="form-group">
+                <label for="region">Region</label>
+                <input type="text" id="region" name="region" value="cn-north-4" required>
+            </div>
+            <div class="form-group">
+                <label for="special_buckets">特殊存储桶 (JSON格式)</label>
+                <textarea id="special_buckets" name="special_buckets" required>["bucket-a", "bucket-b"]</textarea>
+            </div>
+            <div class="form-group">
+                <label for="bucket_schedules">审查计划 (JSON格式)</label>
+                <textarea id="bucket_schedules" name="bucket_schedules" required>{"bucket-a": {"frequency": "daily", "count": 1}}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="bucket_payment_dates">缴费日期 (JSON格式)</label>
+                <textarea id="bucket_payment_dates" name="bucket_payment_dates" required>{"bucket-a": "2023-01-01"}</textarea>
+            </div>
+
+            <h2>企业微信配置</h2>
+            <div class="form-group">
+                <label for="corp_id">Corp ID</label>
+                <input type="text" id="corp_id" name="corp_id" required>
+            </div>
+            <div class="form-group">
+                <label for="agent_id">Agent ID</label>
+                <input type="text" id="agent_id" name="agent_id" required>
+            </div>
+            <div class="form-group">
+                <label for="secret">Secret</label>
+                <input type="password" id="secret" name="secret" required>
+            </div>
+            <div class="form-group">
+                <label for="touser">接收者</label>
+                <input type="text" id="touser" name="touser" value="@all" required>
+            </div>
+
+            <button type="submit">保存配置</button>
+        </form>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('admin_token');
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        const messageDiv = document.getElementById('message');
+
+        // 加载现有配置
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/admin-config', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401) window.location.href = 'login.html';
+                const config = await response.json();
+
+                if (config.obs_config) {
+                    document.getElementById('access_key').value = config.obs_config.access_key || '';
+                    document.getElementById('secret_key').value = config.obs_config.secret_key || '';
+                    document.getElementById('region').value = config.obs_config.region || '';
+                    document.getElementById('special_buckets').value = JSON.stringify(config.obs_config.special_buckets, null, 2);
+                    document.getElementById('bucket_schedules').value = JSON.stringify(config.obs_config.bucket_schedules, null, 2);
+                    document.getElementById('bucket_payment_dates').value = JSON.stringify(config.obs_config.bucket_payment_dates, null, 2);
+                }
+                if (config.wechat_app) {
+                    document.getElementById('corp_id').value = config.wechat_app.corp_id || '';
+                    document.getElementById('agent_id').value = config.wechat_app.agent_id || '';
+                    document.getElementById('secret').value = config.wechat_app.secret || '';
+                    document.getElementById('touser').value = config.wechat_app.touser || '';
+                }
+
+            } catch (error) {
+                messageDiv.textContent = '加载配置失败';
+                messageDiv.className = 'error';
+                messageDiv.style.display = 'block';
+            }
+        });
+
+        // 保存配置
+        document.getElementById('config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const configData = {
+                obs_config: {
+                    access_key: formData.get('access_key'),
+                    secret_key: formData.get('secret_key'),
+                    region: formData.get('region'),
+                    special_buckets: JSON.parse(formData.get('special_buckets')),
+                    bucket_schedules: JSON.parse(formData.get('bucket_schedules')),
+                    bucket_payment_dates: JSON.parse(formData.get('bucket_payment_dates')),
+                },
+                wechat_app: {
+                    corp_id: formData.get('corp_id'),
+                    agent_id: formData.get('agent_id'),
+                    secret: formData.get('secret'),
+                    touser: formData.get('touser'),
+                }
+            };
+
+            try {
+                const response = await fetch('/api/admin-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(configData)
+                });
+
+                if (response.ok) {
+                    messageDiv.textContent = '配置保存成功！';
+                    messageDiv.className = 'success';
+                } else {
+                    const error = await response.json();
+                    messageDiv.textContent = `保存失败: ${error.message}`;
+                    messageDiv.className = 'error';
+                }
+            } catch (error) {
+                messageDiv.textContent = '请求失败，请稍后重试';
+                messageDiv.className = 'error';
+            }
+            messageDiv.style.display = 'block';
+        });
+
+        // 退出登录
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('admin_token');
+            window.location.href = 'login.html';
+        });
+
+    </script>
+</body>
+</html>
