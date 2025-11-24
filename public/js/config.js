@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Main Modal (Bucket)
     const bucketModal = document.getElementById('bucket-modal');
     const closeBucketModalBtn = bucketModal.querySelector('.close-btn');
-    const saveBucketBtn = document.getElementById('save-bucket-btn');
+    const saveBucketBtn = document.getElementById('save-bucket-changes-btn');
     const addBucketBtn = document.getElementById('add-bucket-btn');
     const itemsTableBody = document.querySelector('#monitored-items-table tbody');
 
