@@ -1,4 +1,4 @@
-name: Setup Server Environment (Multi-OS, v3)
+name: Setup Server Environment (Multi-OS, v4-final)
 
 # 允许手动触发
 on:
@@ -31,8 +31,8 @@ jobs:
               PACKAGE_MANAGER=yum
               echo \"---> Detected RHEL/CentOS OS. Using yum.\"
               sudo yum install -y docker
-              echo \"---> Resetting and installing Nginx module...\"
-              sudo yum module reset -y nginx
+              echo \"---> Enabling and installing Nginx module...\"
+              sudo yum module enable -y nginx
               sudo yum install -y nginx
           else
               echo \"Error: Could not find a supported package manager. Exiting.\" >&2
