@@ -1,6 +1,5 @@
-name: Deploy Application
+name: Deploy Application to BT Panel
 
-# 在代码推送到main分支时自动触发
 on:
   push:
     branches:
@@ -20,7 +19,7 @@ jobs:
         username: ${{ secrets.SERVER_USERNAME }}
         password: ${{ secrets.SERVER_PASSWORD }}
         source: "."
-        target: "/var/www/cloudcheck"
+        target: "/www/wwwroot/cloudcheck" # <-- 更新为宝塔标准路径
 
     - name: Build and Deploy Application on server
       uses: appleboy/ssh-action@master
@@ -29,7 +28,8 @@ jobs:
         username: ${{ secrets.SERVER_USERNAME }}
         password: ${{ secrets.SERVER_PASSWORD }}
         script: |
-          cd /var/www/cloudcheck
+          # 进入宝塔的标准网站目录
+          cd /www/wwwroot/cloudcheck
 
           # 如果config.json不存在，则创建
           if [ ! -f "config.json" ]; then
@@ -48,7 +48,7 @@ jobs:
             -p 127.0.0.1:3000:3000 \
             --name obs-monitor-container \
             --restart always \
-            -v /var/www/cloudcheck/config.json:/usr/src/app/config.json \
+            -v /www/wwwroot/cloudcheck/config.json:/usr/src/app/config.json \
             -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
             -e ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }} \
             -e ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }} \
