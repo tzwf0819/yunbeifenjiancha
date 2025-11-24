@@ -7,16 +7,18 @@ body {
     padding: 20px;
 }
 .container {
-    max-width: 1000px;
+    max-width: 1200px;
     margin: 40px auto;
     padding: 20px;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-h1, h2 {
+h1, h2, h3, legend {
     color: #0056b3;
 }
+legend { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
+fieldset { border: 1px solid #ddd; padding: 20px; border-radius: 8px; margin-bottom: 20px;}
 a {
     color: #007bff;
     text-decoration: none;
@@ -39,26 +41,27 @@ th {
     color: white;
 }
 tr:nth-child(even) {
-    background-color: #f2f2f2;
-}
-.login-form {
-    max-width: 360px;
-    margin: 100px auto;
-    padding: 40px;
+    background-color: #f8f9fa;
 }
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
+.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+.form-group small { color: #6c757d; font-size: 0.8em;}
+.grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
 input[type="text"],
-input[type="password"] {
-    width: 100%;
-    padding: 12px;
+input[type="password"],
+input[type="number"],
+input[type="date"],
+select {
+    width: 95%;
+    padding: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
 }
 button {
-    width: 100%;
-    padding: 12px;
+    width: auto;
+    padding: 12px 20px;
     background-color: #007bff;
     color: white;
     border: none;
@@ -66,31 +69,49 @@ button {
     cursor: pointer;
     font-size: 16px;
 }
-button:hover {
-    background-color: #0056b3;
+button:hover { background-color: #0056b3; }
+.secondary-btn {
+    background-color: #6c757d;
+    margin-top: 10px;
 }
-textarea {
+.secondary-btn:hover { background-color: #5a6268; }
+#message { margin-top: 15px; font-weight: bold; }
+.error-message { color: #d9534f; }
+.success-message { color: #5cb85c; }
+
+/* Modal Styles */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 1000; 
+    left: 0;
+    top: 0;
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-family: monospace;
+    height: 100%;
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.5); 
 }
-.error-message {
-    color: #d9534f;
-    margin-top: 10px;
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto; 
+    padding: 30px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 8px;
+    position: relative;
 }
-.success-message {
-    color: #5cb85c;
-    margin-top: 10px;
+.close-btn {
+    color: #aaa;
+    position: absolute;
+    right: 20px;
+    top: 10px;
+    font-size: 28px;
+    font-weight: bold;
 }
-.error-box {
-    border: 1px solid #d9534f;
-    background-color: #f2dede;
-    color: #a94442;
-    padding: 15px;
-    border-radius: 4px;
-    margin-bottom: 20px;
+.close-btn:hover,
+.close-btn:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
 }
-.正常 { color: green; }
-.异常 { color: red; }

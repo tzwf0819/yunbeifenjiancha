@@ -9,60 +9,95 @@
 <body>
     <div class="container">
         <h1>后台配置</h1>
-        <p>所有配置将保存在服务器的 `config.json` 文件中。请仔细填写以下表单。</p>
+        <p>所有配置将保存在服务器的 `config.json` 文件中。</p>
         
-        <form id="config-form">
-            <fieldset>
-                <legend>华为云OBS配置</legend>
+        <fieldset>
+            <legend>全局配置</legend>
+            <div class="grid-container">
                 <div class="form-group">
-                    <label for="obs-access-key">Access Key ID:</label>
-                    <input type="text" id="obs-access-key" name="access_key">
-                    <small>用于访问OBS服务的访问密钥ID。</small>
+                    <label for="obs-ak">华为云OBS AK:</label>
+                    <input type="text" id="obs-ak" name="ak">
                 </div>
                 <div class="form-group">
-                    <label for="obs-secret-key">Secret Access Key:</label>
-                    <input type="password" id="obs-secret-key" name="secret_key">
-                    <small>与Access Key ID配对的密钥，请确保安全。</small>
+                    <label for="obs-sk">华为云OBS SK:</label>
+                    <input type="password" id="obs-sk" name="sk">
                 </div>
                 <div class="form-group">
-                    <label for="obs-region">Region (区域):</label>
-                    <input type="text" id="obs-region" name="region" placeholder="例如：cn-north-4">
-                    <small>您的OBS服务所在的区域，例如 `cn-north-4`。</small>
-                </div>
-                <div class="form-group">
-                    <label for="obs-special-buckets">特殊巡检桶 (逗号分隔):</label>
-                    <input type="text" id="obs-special-buckets" name="special_buckets">
-                    <small>需要进行文件最后更新时间巡检的存储桶列表，用英文逗号分隔。</small>
+                    <label for="obs-endpoint">华为云OBS Endpoint:</label>
+                    <input type="text" id="obs-endpoint" name="endpoint">
                 </div>
                  <div class="form-group">
-                    <label for="obs-bucket-schedules">巡检周期 (逗号分隔):</label>
-                    <input type="text" id="obs-bucket-schedules" name="bucket_schedules">
-                    <small>与上方特殊巡检桶一一对应的巡检周期（小时），用英文逗号分隔。例如 `24,48`</small>
+                    <label for="wechat-corp-id">企业微信 CorpID:</label>
+                    <input type="text" id="wechat-corp-id" name="corp_id">
                 </div>
                 <div class="form-group">
-                    <label for="obs-bucket-payment-dates">桶包年到期日 (JSON):</label>
-                    <textarea id="obs-bucket-payment-dates" name="bucket_payment_dates" rows="5" placeholder='例如：&#10;{
-  "bucket-a": "2025-12-31",
-  "bucket-b": "2026-01-20"
-}'></textarea>
-                    <small>记录包年存储桶到期日的JSON对象。</small>
+                    <label for="wechat-agent-id">企业微信 AgentID:</label>
+                    <input type="text" id="wechat-agent-id" name="agent_id">
                 </div>
-            </fieldset>
-
-            <fieldset>
-                <legend>企业微信机器人</legend>
                 <div class="form-group">
-                    <label for="wechat-webhook-url">Webhook URL:</label>
-                    <input type="text" id="wechat-webhook-url" name="webhook_url">
-                    <small>用于接收每日报告的企业微信机器人Webhook地址。</small>
+                    <label for="wechat-secret">企业微信 Secret:</label>
+                    <input type="password" id="wechat-secret" name="secret">
                 </div>
-            </fieldset>
-        </form>
+                <div class="form-group">
+                    <label for="wechat-touser">接收用户 ToUser:</label>
+                    <input type="text" id="wechat-touser" name="touser">
+                </div>
+            </div>
+        </fieldset>
 
-        <button id="save-btn">保 存 配 置</button>
+        <fieldset>
+            <legend>存储桶配置</legend>
+            <table id="bucket-table">
+                <thead>
+                    <tr>
+                        <th>存储桶名称</th>
+                        <th>巡检计划</th>
+                        <th>付费到期日</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- JS动态生成 -->
+                </tbody>
+            </table>
+            <button type="button" id="add-bucket-btn" class="secondary-btn">+ 添加新存储桶</button>
+        </fieldset>
+
+        <button id="save-btn">保 存 全 部 配 置</button>
         <p id="message"></p>
         <a href="/dashboard">前往监控面板</a>
     </div>
+
+    <!-- 存储桶编辑/添加模态框 (子页面) -->
+    <div id="bucket-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3 id="modal-title">编辑存储桶</h3>
+            <input type="hidden" id="bucket-edit-index">
+            <div class="form-group">
+                <label for="bucket-name">存储桶名称:</label>
+                <input type="text" id="bucket-name">
+            </div>
+            <div class="form-group">
+                <label for="bucket-schedule-frequency">巡检频率:</label>
+                <select id="bucket-schedule-frequency">
+                    <option value="daily">每天 (daily)</option>
+                    <option value="hourly">每小时 (hourly)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="bucket-schedule-count">巡检次数:</label>
+                <input type="number" id="bucket-schedule-count" min="1">
+                <small>例如：每天3次, 就填3; 每小时1次, 就填1。</small>
+            </div>
+            <div class="form-group">
+                <label for="bucket-payment-due-date">付费到期日:</label>
+                <input type="date" id="bucket-payment-due-date">
+            </div>
+            <button id="save-bucket-btn">保存</button>
+        </div>
+    </div>
+
     <script src="/js/config.js"></script>
 </body>
 </html>

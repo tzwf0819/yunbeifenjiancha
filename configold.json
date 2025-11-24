@@ -45,5 +45,10 @@
         "touser": "WeiShaoYan",
         "toparty": "",
         "totag": ""
+    },
+    "huawei_obs": {
+        "ak": "JGMRCZ08USSPRCK3DIBK",
+        "sk": "QpmlQ5Otukjd05geRDHPt847hH2Fxt4yQiYOJgVM",
+        "endpoint": "obs.cn-north-4.myhuaweicloud.com"
     }
 }
