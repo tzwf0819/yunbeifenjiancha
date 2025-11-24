@@ -8,9 +8,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>OBS 存储桶监控面板</h1>
-        <p>最后更新时间：{{last_updated}}</p>
-        <a href="/config">前往配置页面</a>
+        <div class="dashboard-header">
+            <h1>OBS 存储桶监控面板</h1>
+            <div>
+                <button id="run-check-btn" class="primary-btn">立即开始巡检</button>
+                <a href="/config">前往配置页面</a>
+            </div>
+        </div>
+        <p id="message">最后更新时间：{{last_updated}}</p>
         
         {{#error}}
             <div class="error-box">
@@ -58,5 +63,6 @@
         </table>
 
     </div>
+    <script src="/js/dashboard.js"></script>
 </body>
 </html>

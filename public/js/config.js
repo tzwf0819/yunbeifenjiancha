@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    let currentConfig = { huawei_obs: {}, wechat_app: {}, buckets: [] }; // 初始化以防止undefined错误
+    let currentConfig = { huawei_obs: {}, wechat_app: {}, buckets: [] }; // Initialize to prevent undefined errors
     const message = document.getElementById('message');
     const bucketTableBody = document.querySelector('#bucket-table tbody');
 
@@ -31,14 +31,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    const renderBucketList = (buckets) => {
+    const renderBucketList = (buckets = []) => {
         bucketTableBody.innerHTML = '';
         buckets.forEach((bucket, index) => {
             const row = document.createElement('tr');
-            const scheduleText = `每${bucket.schedule_frequency === 'daily' ? '天' : '小时'} ${bucket.schedule_count} 次`;
             row.innerHTML = `
                 <td>${bucket.name}</td>
-                <td>${scheduleText}</td>
                 <td>${bucket.payment_due_date || '未设置'}</td>
                 <td>
                     <button type="button" class="edit-bucket-btn secondary-btn" data-index="${index}">编辑</button>
@@ -56,22 +54,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             modalTitle.textContent = '编辑存储桶';
             document.getElementById('bucket-name').value = bucket.name;
             document.getElementById('bucket-name').readOnly = true;
-            const scheduleValue = `${bucket.schedule_frequency || 'daily'},${bucket.schedule_count || 1}`;
-            document.getElementById('bucket-schedule').value = scheduleValue;
             document.getElementById('bucket-payment-due-date').value = bucket.payment_due_date || '';
         } else { // Add mode
             modalTitle.textContent = '添加新存储桶';
             document.getElementById('bucket-name').value = '';
             document.getElementById('bucket-name').readOnly = false;
-            document.getElementById('bucket-schedule').value = 'daily,1';
             document.getElementById('bucket-payment-due-date').value = '';
         }
         modal.style.display = 'block';
     };
 
-    const closeModal = () => {
-        modal.style.display = 'none';
-    };
+    const closeModal = () => { modal.style.display = 'none'; };
 
     addBucketBtn.addEventListener('click', () => openModal(null, -1));
     closeModalBtn.addEventListener('click', closeModal);
@@ -88,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentConfig = { ...currentConfig, ...loadedConfig };
         }
         renderGlobalConfig(currentConfig);
-        renderBucketList(currentConfig.buckets || []);
+        renderBucketList(currentConfig.buckets);
     } catch (error) { 
         console.error("Error loading config:", error);
         message.textContent = '加载配置失败! (可能为空)'; 
@@ -110,18 +103,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     saveBucketBtn.addEventListener('click', () => {
         const index = document.getElementById('bucket-edit-index').value;
-        const scheduleValue = document.getElementById('bucket-schedule').value.split(',');
         const bucketData = {
             name: document.getElementById('bucket-name').value.trim(),
-            schedule_frequency: scheduleValue[0],
-            schedule_count: parseInt(scheduleValue[1], 10),
             payment_due_date: document.getElementById('bucket-payment-due-date').value
         };
         if (!bucketData.name) { alert('存储桶名称不能为空！'); return; }
-
-        if (!currentConfig.buckets) {
-            currentConfig.buckets = [];
-        }
+        if (!currentConfig.buckets) currentConfig.buckets = [];
 
         if (index >= 0) { // Edit
             currentConfig.buckets[index] = bucketData;
@@ -146,11 +133,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 secret: document.getElementById('wechat-secret').value.trim(),
                 touser: document.getElementById('wechat-touser').value.trim()
             },
-            buckets: currentConfig.buckets
+            buckets: currentConfig.buckets || []
         };
 
         try {
-            // 1. 保存配置
             message.textContent = '正在保存配置...';
             message.className = '';
             const saveResponse = await fetch('/api/config', {
@@ -161,11 +147,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (saveResponse.status === 401) return window.location.href = '/login';
             const saveResult = await saveResponse.json();
 
-            if (!saveResult.success) {
-                throw new Error(saveResult.message || '保存失败');
-            }
+            if (!saveResult.success) throw new Error(saveResult.message || '保存失败');
 
-            // 2. 保存成功后，立即触发巡检
             message.textContent = '配置保存成功！正在触发即时巡检，请稍候...';
             message.className = 'success-message';
 

@@ -46,12 +46,11 @@
         </fieldset>
 
         <fieldset>
-            <legend>存储桶配置</legend>
+            <legend>存储桶配置 (每日8:30统一巡检)</legend>
             <table id="bucket-table">
                 <thead>
                     <tr>
                         <th>存储桶名称</th>
-                        <th>巡检计划</th>
                         <th>付费到期日</th>
                         <th>操作</th>
                     </tr>
@@ -63,7 +62,7 @@
             <button type="button" id="add-bucket-btn" class="secondary-btn">+ 添加新存储桶</button>
         </fieldset>
 
-        <button id="save-btn">保 存 全 部 配 置</button>
+        <button id="save-btn">保 存 并 触 发 一 次 巡 检</button>
         <p id="message"></p>
         <a href="/dashboard">前往监控面板</a>
     </div>
@@ -77,15 +76,6 @@
             <div class="form-group">
                 <label for="bucket-name">存储桶名称:</label>
                 <input type="text" id="bucket-name">
-            </div>
-            <div class="form-group">
-                <label for="bucket-schedule">巡检计划:</label>
-                <select id="bucket-schedule">
-                    <option value="daily,1">每天 1 次</option>
-                    <option value="daily,2">每天 2 次</option>
-                    <option value="daily,3">每天 3 次</option>
-                    <option value="hourly,1">每小时 1 次</option>
-                </select>
             </div>
             <div class="form-group">
                 <label for="bucket-payment-due-date">付费到期日:</label>
