@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Main Modal (Bucket)
     const bucketModal = document.getElementById('bucket-modal');
     const closeBucketModalBtn = bucketModal.querySelector('.close-btn');
-    const saveBucketBtn = document.getElementById('save-bucket-changes-btn');
+    const saveBucketBtn = bucketModal.querySelector('#save-bucket-btn');
     const addBucketBtn = document.getElementById('add-bucket-btn');
     const itemsTableBody = document.querySelector('#monitored-items-table tbody');
 
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const itemModal = document.getElementById('item-modal');
     const closeItemModalBtn = itemModal.querySelector('.close-btn-item');
     const saveItemBtn = document.getElementById('save-item-btn');
-    const addItemBtn = document.getElementById('add-item-btn');
+    const addItemBtn = bucketModal.querySelector('#add-item-btn');
 
     // --- RENDER FUNCTIONS ---
     const renderGlobalConfig = () => {
