@@ -86,10 +86,10 @@ const checkBackupItem = async (obsClient, bucketName, item) => {
         const expectedIntervalHours = frequency === 'hourly' ? 1.5 : (24 / count) + 2;
 
         if (timeDiffHours > expectedIntervalHours) {
-            return { status: '异常', reason: `超过 ${Math.round(expectedIntervalHours)} 小时未备份`, latest_file_name: latestFile.name, latest_time: latestFile.time.toLocaleString() };
+            return { status: '异常', reason: `超过 ${Math.round(expectedIntervalHours)} 小时未备份`, latest_file_name: latestFile.name, latest_time: latestFile.time.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) };
         }
 
-        return { status: '正常', reason: '备份在预期时间内', latest_file_name: latestFile.name, latest_time: latestFile.time.toLocaleString() };
+        return { status: '正常', reason: '备份在预期时间内', latest_file_name: latestFile.name, latest_time: latestFile.time.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) };
 
     } catch (error) {
         return { status: '异常', reason: `检查失败: ${error.message}`, latest_file_name: 'N/A', latest_time: 'N/A' };
@@ -101,7 +101,7 @@ const getAllFiles = async (obsClient, bucketName) => {
         const result = await obsClient.listObjects({ Bucket: bucketName });
         if (result.CommonMsg.Status >= 300) return [];
         return result.InterfaceResult.Contents
-            .map(f => ({ name: f.Key, time: new Date(f.LastModified).toLocaleString(), size: `${(f.Size / 1024 / 1024).toFixed(2)} MB` }))
+            .map(f => ({ name: f.Key, time: new Date(f.LastModified).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }), size: `${(f.Size / 1024 / 1024).toFixed(2)} MB` }))
             .sort((a, b) => new Date(b.time) - new Date(a.time));
     } catch (error) {
         console.error(`Failed to list files for bucket ${bucketName}:`, error);
@@ -115,16 +115,16 @@ const getBucketStatus = async () => {
     const review_results = [];
     const all_bucket_files = [];
 
-    if (!config.buckets) return { review_results: [], expired_buckets: [], all_bucket_files: [], last_updated: new Date().toLocaleString() };
+    if (!config.buckets) return { review_results: [], expired_buckets: [], all_bucket_files: [], last_updated: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) };
 
     for (const bucket of config.buckets) {
         for (const item of bucket.items) {
             const result = await checkBackupItem(obsClient, bucket.name, item);
-            review_results.push({ 
-                bucket_name: bucket.name, 
-                item_prefix: item.prefix, 
+            review_results.push({
+                bucket_name: bucket.name,
+                item_prefix: item.prefix,
                 payment_due_date: bucket.payment_due_date || '未设置',
-                ...result 
+                ...result
             });
         }
         const files = await getAllFiles(obsClient, bucket.name);
@@ -132,7 +132,7 @@ const getBucketStatus = async () => {
     }
 
     const expired_buckets = checkPaymentDates(config.buckets);
-    return { review_results, expired_buckets, all_bucket_files, last_updated: new Date().toLocaleString() };
+    return { review_results, expired_buckets, all_bucket_files, last_updated: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) };
 };
 
 const checkPaymentDates = (buckets = []) => {
@@ -173,32 +173,25 @@ const runScheduledReport = async () => {
         return;
     }
 
-    const { review_results, expired_buckets } = await getBucketStatus();
-    const hasAbnormal = review_results.some(r => r.status === '异常');
-    const hasExpired = expired_buckets.length > 0;
+    const { review_results } = await getBucketStatus();
+    const abnormalItems = review_results.filter(r => r.status === '异常');
+    
+    let textContent = '';
 
-    if (!hasAbnormal && !hasExpired) {
-        console.log("所有监控项均正常，不发送通知。");
-        return;
-    }
-
-    let textContent = `OBS每日巡检报告 - ${new Date().toLocaleDateString()}\n`;
-    if (hasAbnormal) {
+    if (abnormalItems.length === 0) {
+        textContent = "存储桶全部正常,今日可以全心全意写代码";
+        console.log("所有监控项均正常，发送正常通知。");
+    } else {
+        textContent = `OBS每日巡检报告 - ${new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
         textContent += '\n【异常备份项】:\n';
-        review_results.filter(r => r.status === '异常').forEach(r => {
+        abnormalItems.forEach(r => {
             textContent += `- ${r.bucket_name} / ${r.item_prefix}: ${r.status} (${r.reason})\n`;
         });
-    }
-    if (hasExpired) {
-        textContent += '\n【续费提醒】:\n';
-        expired_buckets.forEach(b => {
-            textContent += `- 存储桶 ${b.name} 的服务将于 ${b.date} 到期！\n`;
-        });
+         console.log("已发送异常备份项的企业微信通知。");
     }
 
     const token = await getWechatToken(config.wechat_app.corp_id, config.wechat_app.secret);
     await sendWechatMessage(token, textContent, config.wechat_app.agent_id, config.wechat_app.touser);
-    console.log("已发送包含异常/到期信息的企业微信通知。");
 };
 
 module.exports = { loadConfig, saveConfig, getBucketStatus, runScheduledReport };
