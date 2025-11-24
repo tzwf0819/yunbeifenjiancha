@@ -138,15 +138,25 @@ const getBucketStatus = async () => {
 const checkPaymentDates = (buckets = []) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
     return buckets
         .filter(b => {
             if (!b.payment_due_date) return false;
-            const dueDate = new Date(b.payment_due_date);
-            const daysDiff = (dueDate - today) / (1000 * 60 * 60 * 24);
-            return daysDiff <= 30; // 30天内到期提醒
+
+            const paymentDate = new Date(b.payment_due_date);
+            const expiryDate = new Date(paymentDate.setFullYear(paymentDate.getFullYear() + 1));
+
+            const daysDiff = (expiryDate - today) / (1000 * 60 * 60 * 24);
+
+            return daysDiff <= 15 && daysDiff >= 0;
         })
-        .map(b => ({ name: b.name, date: b.payment_due_date }));
+        .map(b => {
+            const paymentDate = new Date(b.payment_due_date);
+            const expiryDate = new Date(paymentDate.setFullYear(paymentDate.getFullYear() + 1));
+            return { name: b.name, date: expiryDate.toISOString().split('T')[0] };
+        });
 };
+
 
 // --- WeChat Notification ---
 const getWechatToken = async (corpId, secret) => {
