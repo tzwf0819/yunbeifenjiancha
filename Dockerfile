@@ -2,6 +2,9 @@
 # 使用官方Node.js 18镜像
 FROM node:18-alpine
 
+# 设置时区为亚洲/上海
+ENV TZ=Asia/Shanghai
+
 # 设置工作目录
 WORKDIR /usr/src/app
 
