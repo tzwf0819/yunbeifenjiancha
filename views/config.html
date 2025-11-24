@@ -9,11 +9,10 @@
 <body>
     <div class="container">
         <h1>后台配置</h1>
-        <p>所有配置将保存在服务器的 `config.json` 文件中。</p>
         
         <fieldset>
             <legend>全局配置</legend>
-            <div class="grid-container">
+             <div class="grid-container">
                 <div class="form-group">
                     <label for="obs-ak">华为云OBS AK:</label>
                     <input type="text" id="obs-ak" name="ak">
@@ -46,11 +45,12 @@
         </fieldset>
 
         <fieldset>
-            <legend>存储桶配置 (每日8:30统一巡检)</legend>
+            <legend>存储桶列表</legend>
             <table id="bucket-table">
                 <thead>
                     <tr>
                         <th>存储桶名称</th>
+                        <th>监控项数量</th>
                         <th>付费到期日</th>
                         <th>操作</th>
                     </tr>
@@ -62,26 +62,67 @@
             <button type="button" id="add-bucket-btn" class="secondary-btn">+ 添加新存储桶</button>
         </fieldset>
 
-        <button id="save-btn">保 存 并 触 发 一 次 巡 检</button>
+        <button id="save-btn">保 存 全 部 配 置</button>
         <p id="message"></p>
         <a href="/dashboard">前往监控面板</a>
     </div>
 
-    <!-- 存储桶编辑/添加模态框 (子页面) -->
+    <!-- 桶编辑模态框 (大) -->
     <div id="bucket-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content large">
             <span class="close-btn">&times;</span>
             <h3 id="modal-title">编辑存储桶</h3>
             <input type="hidden" id="bucket-edit-index">
+            
+            <div class="grid-container">
+                <div class="form-group">
+                    <label for="bucket-name">存储桶名称:</label>
+                    <input type="text" id="bucket-name">
+                </div>
+                <div class="form-group">
+                    <label for="bucket-payment-due-date">付费到期日:</label>
+                    <input type="date" id="bucket-payment-due-date">
+                </div>
+            </div>
+
+            <h4>监控项 (具体的备份文件)</h4>
+            <table id="monitored-items-table">
+                <thead>
+                    <tr>
+                        <th>备份文件名前缀</th>
+                        <th>备份计划</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <button type="button" id="add-item-btn" class="secondary-btn">+ 添加监控项</button>
+            <hr>
+            <button id="save-bucket-btn">确认更改并关闭</button>
+        </div>
+    </div>
+
+    <!-- 监控项编辑模态框 (小) -->
+    <div id="item-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn-item">&times;</span>
+            <h3 id="item-modal-title">编辑监控项</h3>
+            <input type="hidden" id="item-edit-index">
             <div class="form-group">
-                <label for="bucket-name">存储桶名称:</label>
-                <input type="text" id="bucket-name">
+                <label for="item-prefix">备份文件名前缀:</label>
+                <input type="text" id="item-prefix">
+                <small>例如: zhenyuan, 或 zyyinshua</small>
             </div>
             <div class="form-group">
-                <label for="bucket-payment-due-date">付费到期日:</label>
-                <input type="date" id="bucket-payment-due-date">
+                <label for="item-schedule">备份计划:</label>
+                <select id="item-schedule">
+                    <option value="daily_1">每天 1 次</option>
+                    <option value="daily_2">每天 2 次</option>
+                    <option value="daily_3">每天 3 次</option>
+                    <option value="hourly_1">每小时 1 次</option>
+                </select>
             </div>
-            <button id="save-bucket-btn">保存</button>
+            <button id="save-item-btn">保存</button>
         </div>
     </div>
 

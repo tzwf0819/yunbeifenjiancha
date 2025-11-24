@@ -1,126 +1,214 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('authToken');
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
+    if (!token) return window.location.href = '/login';
 
-    let currentConfig = { huawei_obs: {}, wechat_app: {}, buckets: [] }; // Initialize to prevent undefined errors
+    let currentConfig = { huawei_obs: {}, wechat_app: {}, buckets: [] };
     const message = document.getElementById('message');
     const bucketTableBody = document.querySelector('#bucket-table tbody');
 
-    const modal = document.getElementById('bucket-modal');
-    const closeModalBtn = document.querySelector('.close-btn');
+    // Main Modal (Bucket)
+    const bucketModal = document.getElementById('bucket-modal');
+    const closeBucketModalBtn = bucketModal.querySelector('.close-btn');
     const saveBucketBtn = document.getElementById('save-bucket-btn');
     const addBucketBtn = document.getElementById('add-bucket-btn');
-    const modalTitle = document.getElementById('modal-title');
+    const itemsTableBody = document.querySelector('#monitored-items-table tbody');
 
-    // --- Render Functions ---
-    const renderGlobalConfig = (config) => {
-        if (config.huawei_obs) {
-            document.getElementById('obs-ak').value = config.huawei_obs.ak || '';
-            document.getElementById('obs-sk').value = config.huawei_obs.sk || '';
-            document.getElementById('obs-endpoint').value = config.huawei_obs.endpoint || '';
+    // Item Modal (Monitored Item)
+    const itemModal = document.getElementById('item-modal');
+    const closeItemModalBtn = itemModal.querySelector('.close-btn-item');
+    const saveItemBtn = document.getElementById('save-item-btn');
+    const addItemBtn = document.getElementById('add-item-btn');
+
+    // --- RENDER FUNCTIONS ---
+    const renderGlobalConfig = () => {
+        const { huawei_obs, wechat_app } = currentConfig;
+        if (huawei_obs) {
+            document.getElementById('obs-ak').value = huawei_obs.ak || '';
+            document.getElementById('obs-sk').value = huawei_obs.sk || '';
+            document.getElementById('obs-endpoint').value = huawei_obs.endpoint || '';
         }
-        if (config.wechat_app) {
-            document.getElementById('wechat-corp-id').value = config.wechat_app.corp_id || '';
-            document.getElementById('wechat-agent-id').value = config.wechat_app.agent_id || '';
-            document.getElementById('wechat-secret').value = config.wechat_app.secret || '';
-            document.getElementById('wechat-touser').value = config.wechat_app.touser || '';
+        if (wechat_app) {
+            document.getElementById('wechat-corp-id').value = wechat_app.corp_id || '';
+            document.getElementById('wechat-agent-id').value = wechat_app.agent_id || '';
+            document.getElementById('wechat-secret').value = wechat_app.secret || '';
+            document.getElementById('wechat-touser').value = wechat_app.touser || '';
         }
     };
 
-    const renderBucketList = (buckets = []) => {
+    const renderBucketList = () => {
         bucketTableBody.innerHTML = '';
-        buckets.forEach((bucket, index) => {
-            const row = document.createElement('tr');
+        currentConfig.buckets.forEach((bucket, index) => {
+            const row = bucketTableBody.insertRow();
             row.innerHTML = `
                 <td>${bucket.name}</td>
+                <td>${bucket.items.length}</td>
                 <td>${bucket.payment_due_date || '未设置'}</td>
                 <td>
                     <button type="button" class="edit-bucket-btn secondary-btn" data-index="${index}">编辑</button>
                     <button type="button" class="delete-bucket-btn secondary-btn" data-index="${index}">删除</button>
                 </td>
             `;
-            bucketTableBody.appendChild(row);
         });
     };
 
-    // --- Modal Logic ---
-    const openModal = (bucket, index) => {
-        document.getElementById('bucket-edit-index').value = index;
-        if (bucket) { // Edit mode
-            modalTitle.textContent = '编辑存储桶';
+    const renderItemsList = (bucketIndex) => {
+        itemsTableBody.innerHTML = '';
+        const bucket = currentConfig.buckets[bucketIndex];
+        if (!bucket || !bucket.items) return;
+
+        bucket.items.forEach((item, itemIndex) => {
+            const scheduleMap = { 'daily_1': '每天1次', 'daily_2': '每天2次', 'daily_3': '每天3次', 'hourly_1': '每小时1次' };
+            const row = itemsTableBody.insertRow();
+            row.innerHTML = `
+                <td>${item.prefix}</td>
+                <td>${scheduleMap[item.schedule] || '未知'}</td>
+                <td>
+                    <button type="button" class="edit-item-btn secondary-btn" data-index="${itemIndex}">编辑</button>
+                    <button type="button" class="delete-item-btn secondary-btn" data-index="${itemIndex}">删除</button>
+                </td>
+            `;
+        });
+    };
+
+    // --- MODAL LOGIC ---
+    const openBucketModal = (bucketIndex) => {
+        document.getElementById('bucket-edit-index').value = bucketIndex;
+        if (bucketIndex >= 0) { // Edit
+            const bucket = currentConfig.buckets[bucketIndex];
+            document.getElementById('modal-title').textContent = '编辑存储桶';
             document.getElementById('bucket-name').value = bucket.name;
             document.getElementById('bucket-name').readOnly = true;
             document.getElementById('bucket-payment-due-date').value = bucket.payment_due_date || '';
-        } else { // Add mode
-            modalTitle.textContent = '添加新存储桶';
+            renderItemsList(bucketIndex);
+        } else { // Add
+            document.getElementById('modal-title').textContent = '添加新存储桶';
             document.getElementById('bucket-name').value = '';
             document.getElementById('bucket-name').readOnly = false;
             document.getElementById('bucket-payment-due-date').value = '';
+            itemsTableBody.innerHTML = ''; // Clear items for new bucket
         }
-        modal.style.display = 'block';
+        bucketModal.style.display = 'block';
     };
 
-    const closeModal = () => { modal.style.display = 'none'; };
+    const openItemModal = (bucketIndex, itemIndex) => {
+        document.getElementById('item-edit-index').value = itemIndex;
+        if (itemIndex >= 0) { // Edit
+            const item = currentConfig.buckets[bucketIndex].items[itemIndex];
+            document.getElementById('item-modal-title').textContent = '编辑监控项';
+            document.getElementById('item-prefix').value = item.prefix;
+            document.getElementById('item-schedule').value = item.schedule;
+        } else { // Add
+            document.getElementById('item-modal-title').textContent = '添加监控项';
+            document.getElementById('item-prefix').value = '';
+            document.getElementById('item-schedule').value = 'daily_1';
+        }
+        itemModal.style.display = 'block';
+    };
 
-    addBucketBtn.addEventListener('click', () => openModal(null, -1));
-    closeModalBtn.addEventListener('click', closeModal);
-    window.addEventListener('click', (event) => {
-        if (event.target == modal) closeModal();
-    });
+    // -- Event Listeners for Modals --
+    addBucketBtn.onclick = () => openBucketModal(-1);
+    closeBucketModalBtn.onclick = () => bucketModal.style.display = 'none';
+    closeItemModalBtn.onclick = () => itemModal.style.display = 'none';
+    window.onclick = (event) => {
+        if (event.target == bucketModal) bucketModal.style.display = 'none';
+        if (event.target == itemModal) itemModal.style.display = 'none';
+    };
 
-    // --- Data Logic ---
+    // --- DATA HANDLING ---
     try { // Initial Load
         const response = await fetch('/api/config', { headers: { 'Authorization': `Bearer ${token}` } });
         if (response.status === 401) return window.location.href = '/login';
         const loadedConfig = await response.json();
-        if (Object.keys(loadedConfig).length > 0) {
-            currentConfig = { ...currentConfig, ...loadedConfig };
-        }
-        renderGlobalConfig(currentConfig);
-        renderBucketList(currentConfig.buckets);
-    } catch (error) { 
-        console.error("Error loading config:", error);
-        message.textContent = '加载配置失败! (可能为空)'; 
-        message.className = 'error-message'; 
+        currentConfig = { ...currentConfig, ...loadedConfig };
+        if (!currentConfig.buckets) currentConfig.buckets = [];
+        renderGlobalConfig();
+        renderBucketList();
+    } catch (e) {
+        console.error("Config load error:", e);
+        message.textContent = '加载配置失败，可能为空或格式错误。';
+        message.className = 'error-message';
     }
 
-    bucketTableBody.addEventListener('click', (event) => {
-        const index = event.target.dataset.index;
-        if (event.target.classList.contains('edit-bucket-btn')) {
-            openModal(currentConfig.buckets[index], index);
+    // Main List Actions
+    bucketTableBody.addEventListener('click', (e) => {
+        const index = e.target.dataset.index;
+        if (e.target.classList.contains('edit-bucket-btn')) {
+            openBucketModal(index);
         }
-        if (event.target.classList.contains('delete-bucket-btn')) {
+        if (e.target.classList.contains('delete-bucket-btn')) {
             if (confirm(`确定要删除存储桶 ${currentConfig.buckets[index].name} 吗？`)) {
                 currentConfig.buckets.splice(index, 1);
-                renderBucketList(currentConfig.buckets);
+                renderBucketList();
             }
         }
     });
 
-    saveBucketBtn.addEventListener('click', () => {
-        const index = document.getElementById('bucket-edit-index').value;
-        const bucketData = {
-            name: document.getElementById('bucket-name').value.trim(),
-            payment_due_date: document.getElementById('bucket-payment-due-date').value
-        };
-        if (!bucketData.name) { alert('存储桶名称不能为空！'); return; }
-        if (!currentConfig.buckets) currentConfig.buckets = [];
+    // Bucket Modal Actions
+    saveBucketBtn.onclick = () => {
+        const bucketIndex = document.getElementById('bucket-edit-index').value;
+        const bucketName = document.getElementById('bucket-name').value.trim();
+        if (!bucketName) return alert('存储桶名称不能为空！');
 
-        if (index >= 0) { // Edit
-            currentConfig.buckets[index] = bucketData;
+        const bucketData = {
+            name: bucketName,
+            payment_due_date: document.getElementById('bucket-payment-due-date').value,
+            items: (bucketIndex >= 0) ? currentConfig.buckets[bucketIndex].items : []
+        };
+        
+        if (bucketIndex >= 0) { // Edit
+            currentConfig.buckets[bucketIndex] = bucketData;
         } else { // Add
             currentConfig.buckets.push(bucketData);
         }
-        renderBucketList(currentConfig.buckets);
-        closeModal();
+        renderBucketList();
+        bucketModal.style.display = 'none';
+    };
+
+    addItemBtn.onclick = () => {
+        const bucketIndex = document.getElementById('bucket-edit-index').value;
+        if (bucketIndex < 0) return alert('请先保存存储桶基本信息！');
+        openItemModal(bucketIndex, -1);
+    };
+
+    itemsTableBody.addEventListener('click', (e) => {
+        const bucketIndex = document.getElementById('bucket-edit-index').value;
+        const itemIndex = e.target.dataset.index;
+        if (e.target.classList.contains('edit-item-btn')) {
+            openItemModal(bucketIndex, itemIndex);
+        }
+        if (e.target.classList.contains('delete-item-btn')) {
+            if(confirm(`确定删除监控项 ${currentConfig.buckets[bucketIndex].items[itemIndex].prefix} 吗？`)) {
+                currentConfig.buckets[bucketIndex].items.splice(itemIndex, 1);
+                renderItemsList(bucketIndex);
+            }
+        }
     });
 
-    // --- Main Save Button & Run Check Logic ---
+    // Item Modal Actions
+    saveItemBtn.onclick = () => {
+        const bucketIndex = document.getElementById('bucket-edit-index').value;
+        const itemIndex = document.getElementById('item-edit-index').value;
+        const itemData = {
+            prefix: document.getElementById('item-prefix').value.trim(),
+            schedule: document.getElementById('item-schedule').value
+        };
+        if (!itemData.prefix) return alert('备份文件名前缀不能为空！');
+
+        if (!currentConfig.buckets[bucketIndex].items) currentConfig.buckets[bucketIndex].items = [];
+
+        if (itemIndex >= 0) { // Edit
+            currentConfig.buckets[bucketIndex].items[itemIndex] = itemData;
+        } else { // Add
+            currentConfig.buckets[bucketIndex].items.push(itemData);
+        }
+        renderItemsList(bucketIndex);
+        itemModal.style.display = 'none';
+    };
+
+    // --- GLOBAL SAVE ---
     document.getElementById('save-btn').addEventListener('click', async () => {
+        // Just gather global config, buckets are already updated in `currentConfig`
         const finalConfig = {
             huawei_obs: {
                 ak: document.getElementById('obs-ak').value.trim(),
@@ -133,40 +221,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 secret: document.getElementById('wechat-secret').value.trim(),
                 touser: document.getElementById('wechat-touser').value.trim()
             },
-            buckets: currentConfig.buckets || []
+            buckets: currentConfig.buckets
         };
 
         try {
-            message.textContent = '正在保存配置...';
-            message.className = '';
-            const saveResponse = await fetch('/api/config', {
+            const response = await fetch('/api/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(finalConfig)
             });
-            if (saveResponse.status === 401) return window.location.href = '/login';
-            const saveResult = await saveResponse.json();
-
-            if (!saveResult.success) throw new Error(saveResult.message || '保存失败');
-
-            message.textContent = '配置保存成功！正在触发即时巡检，请稍候...';
-            message.className = 'success-message';
-
-            const checkResponse = await fetch('/api/run-check', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const checkResult = await checkResponse.json();
-            
-            if (checkResult.success) {
-                 message.textContent = `保存成功！${checkResult.message}`;
-                 message.className = 'success-message';
-            } else {
-                throw new Error(checkResult.message || '巡检触发失败');
-            }
-
+            const result = await response.json();
+            message.textContent = result.success ? '保存成功！' : (result.message || '保存失败！');
+            message.className = result.success ? 'success-message' : 'error-message';
         } catch (error) {
-            message.textContent = `操作失败: ${error.message}`;
+            message.textContent = `保存失败: ${error.message}`;
             message.className = 'error-message';
         }
     });
