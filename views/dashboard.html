@@ -63,14 +63,18 @@
             </tbody>
         </table>
 
-        <h2>到期提醒 (30天内)</h2>
+        <h2>缴费表格</h2>
         <table>
              <thead>
-                <tr><th>存储桶名称</th><th>到期日</th></tr>
+                <tr><th>存储桶名称</th><th>缴费日</th><th>到期日</th></tr>
             </thead>
             <tbody>
                 {{#expired_buckets}}
-                <tr><td>{{name}}</td><td>{{date}}</td></tr>
+                <tr>
+                    <td>{{name}}</td>
+                    <td>{{payment_date}}</td>
+                    <td>{{expiry_date}}</td>
+                </tr>
                 {{/expired_buckets}}
             </tbody>
         </table>

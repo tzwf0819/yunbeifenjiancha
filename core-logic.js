@@ -140,20 +140,15 @@ const checkPaymentDates = (buckets = []) => {
     today.setHours(0, 0, 0, 0);
 
     return buckets
-        .filter(b => {
-            if (!b.payment_due_date) return false;
-
-            const paymentDate = new Date(b.payment_due_date);
-            const expiryDate = new Date(paymentDate.setFullYear(paymentDate.getFullYear() + 1));
-
-            const daysDiff = (expiryDate - today) / (1000 * 60 * 60 * 24);
-
-            return daysDiff <= 15 && daysDiff >= 0;
-        })
+        .filter(b => !!b.payment_due_date)
         .map(b => {
             const paymentDate = new Date(b.payment_due_date);
-            const expiryDate = new Date(paymentDate.setFullYear(paymentDate.getFullYear() + 1));
-            return { name: b.name, date: expiryDate.toISOString().split('T')[0] };
+            const expiryDate = new Date(paymentDate.getFullYear() + 1, paymentDate.getMonth(), paymentDate.getDate());
+            return {
+                name: b.name,
+                payment_date: b.payment_due_date,
+                expiry_date: expiryDate.toISOString().split('T')[0]
+            };
         });
 };
 
