@@ -79,16 +79,14 @@
                 <input type="text" id="bucket-name">
             </div>
             <div class="form-group">
-                <label for="bucket-schedule-frequency">巡检频率:</label>
-                <select id="bucket-schedule-frequency">
-                    <option value="daily">每天 (daily)</option>
-                    <option value="hourly">每小时 (hourly)</option>
+                <label for="bucket-schedule">巡检计划:</label>
+                <select id="bucket-schedule">
+                    <option value="daily,1">每天 1 次</option>
+                    <option value="daily,2">每天 2 次</option>
+                    <option value="daily,3">每天 3 次</option>
+                    <option value="hourly,1">每小时 1 次</option>
+                    <option value="hourly,24">每小时 24 次 (全天)</option>
                 </select>
-            </div>
-            <div class="form-group">
-                <label for="bucket-schedule-count">巡检次数:</label>
-                <input type="number" id="bucket-schedule-count" min="1">
-                <small>例如：每天3次, 就填3; 每小时1次, 就填1。</small>
             </div>
             <div class="form-group">
                 <label for="bucket-payment-due-date">付费到期日:</label>

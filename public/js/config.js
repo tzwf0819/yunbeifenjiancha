@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    let currentConfig = { buckets: [] };
+    let currentConfig = { huawei_obs: {}, wechat_app: {}, buckets: [] }; // 初始化以防止undefined错误
     const message = document.getElementById('message');
     const bucketTableBody = document.querySelector('#bucket-table tbody');
 
@@ -55,16 +55,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (bucket) { // Edit mode
             modalTitle.textContent = '编辑存储桶';
             document.getElementById('bucket-name').value = bucket.name;
-            document.getElementById('bucket-name').readOnly = true; // 不允许修改名称
-            document.getElementById('bucket-schedule-frequency').value = bucket.schedule_frequency || 'daily';
-            document.getElementById('bucket-schedule-count').value = bucket.schedule_count || 1;
+            document.getElementById('bucket-name').readOnly = true;
+            const scheduleValue = `${bucket.schedule_frequency || 'daily'},${bucket.schedule_count || 1}`;
+            document.getElementById('bucket-schedule').value = scheduleValue;
             document.getElementById('bucket-payment-due-date').value = bucket.payment_due_date || '';
         } else { // Add mode
             modalTitle.textContent = '添加新存储桶';
             document.getElementById('bucket-name').value = '';
             document.getElementById('bucket-name').readOnly = false;
-            document.getElementById('bucket-schedule-frequency').value = 'daily';
-            document.getElementById('bucket-schedule-count').value = 1;
+            document.getElementById('bucket-schedule').value = 'daily,1';
             document.getElementById('bucket-payment-due-date').value = '';
         }
         modal.style.display = 'block';
@@ -84,11 +83,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { // Initial Load
         const response = await fetch('/api/config', { headers: { 'Authorization': `Bearer ${token}` } });
         if (response.status === 401) return window.location.href = '/login';
-        currentConfig = await response.json();
+        const loadedConfig = await response.json();
+        if (Object.keys(loadedConfig).length > 0) {
+            currentConfig = { ...currentConfig, ...loadedConfig };
+        }
         renderGlobalConfig(currentConfig);
         renderBucketList(currentConfig.buckets || []);
     } catch (error) { 
-        message.textContent = '加载配置失败!'; 
+        console.error("Error loading config:", error);
+        message.textContent = '加载配置失败! (可能为空)'; 
         message.className = 'error-message'; 
     }
 
@@ -107,13 +110,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     saveBucketBtn.addEventListener('click', () => {
         const index = document.getElementById('bucket-edit-index').value;
+        const scheduleValue = document.getElementById('bucket-schedule').value.split(',');
         const bucketData = {
             name: document.getElementById('bucket-name').value.trim(),
-            schedule_frequency: document.getElementById('bucket-schedule-frequency').value,
-            schedule_count: parseInt(document.getElementById('bucket-schedule-count').value, 10),
+            schedule_frequency: scheduleValue[0],
+            schedule_count: parseInt(scheduleValue[1], 10),
             payment_due_date: document.getElementById('bucket-payment-due-date').value
         };
         if (!bucketData.name) { alert('存储桶名称不能为空！'); return; }
+
+        if (!currentConfig.buckets) { // **BUG FIX**: Initialize buckets array if it doesn't exist
+            currentConfig.buckets = [];
+        }
 
         if (index >= 0) { // Edit
             currentConfig.buckets[index] = bucketData;
