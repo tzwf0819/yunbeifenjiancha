@@ -1,1 +1,21 @@
-<!DOCTYPE html>...</html>
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>后台配置 - OBS监控</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>后台配置</h1>
+        <p>所有配置将保存在服务器的 `config.json` 文件中。</p>
+        <textarea id="config-json" rows="30" cols="100" placeholder="正在加载配置..."></textarea>
+        <br>
+        <button id="save-btn">保 存</button>
+        <p id="message" class="success-message"></p>
+        <a href="/dashboard">前往监控面板</a>
+    </div>
+    <script src="/js/config.js"></script>
+</body>
+</html>

@@ -1,1 +1,62 @@
-<!DOCTYPE html>...</html>
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>监控面板 - OBS监控</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>OBS 存储桶监控面板</h1>
+        <p>最后更新时间：{{last_updated}}</p>
+        <a href="/config">前往配置页面</a>
+        
+        {{#error}}
+            <div class="error-box">
+                <h2>错误</h2>
+                <p>{{error}}</p>
+            </div>
+        {{/error}}
+
+        <h2>巡检结果</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>存储桶名称</th>
+                    <th>状态</th>
+                    <th>原因</th>
+                    <th>最新文件时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#review_results}}
+                <tr>
+                    <td>{{bucket_name}}</td>
+                    <td class="{{status}}">{{status}}</td>
+                    <td>{{reason}}</td>
+                    <td>{{latest_time}}</td>
+                </tr>
+                {{/review_results}}
+            </tbody>
+        </table>
+
+        <h2>超期存储桶</h2>
+        <table>
+             <thead>
+                <tr>
+                    <th>存储桶名称</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#expired_buckets}}
+                <tr>
+                    <td>{{.}}</td>
+                </tr>
+                {{/expired_buckets}}
+            </tbody>
+        </table>
+
+    </div>
+</body>
+</html>
