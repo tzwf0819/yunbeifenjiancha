@@ -9,11 +9,58 @@
 <body>
     <div class="container">
         <h1>后台配置</h1>
-        <p>所有配置将保存在服务器的 `config.json` 文件中。</p>
-        <textarea id="config-json" rows="30" cols="100" placeholder="正在加载配置..."></textarea>
-        <br>
-        <button id="save-btn">保 存</button>
-        <p id="message" class="success-message"></p>
+        <p>所有配置将保存在服务器的 `config.json` 文件中。请仔细填写以下表单。</p>
+        
+        <form id="config-form">
+            <fieldset>
+                <legend>华为云OBS配置</legend>
+                <div class="form-group">
+                    <label for="obs-access-key">Access Key ID:</label>
+                    <input type="text" id="obs-access-key" name="access_key">
+                    <small>用于访问OBS服务的访问密钥ID。</small>
+                </div>
+                <div class="form-group">
+                    <label for="obs-secret-key">Secret Access Key:</label>
+                    <input type="password" id="obs-secret-key" name="secret_key">
+                    <small>与Access Key ID配对的密钥，请确保安全。</small>
+                </div>
+                <div class="form-group">
+                    <label for="obs-region">Region (区域):</label>
+                    <input type="text" id="obs-region" name="region" placeholder="例如：cn-north-4">
+                    <small>您的OBS服务所在的区域，例如 `cn-north-4`。</small>
+                </div>
+                <div class="form-group">
+                    <label for="obs-special-buckets">特殊巡检桶 (逗号分隔):</label>
+                    <input type="text" id="obs-special-buckets" name="special_buckets">
+                    <small>需要进行文件最后更新时间巡检的存储桶列表，用英文逗号分隔。</small>
+                </div>
+                 <div class="form-group">
+                    <label for="obs-bucket-schedules">巡检周期 (逗号分隔):</label>
+                    <input type="text" id="obs-bucket-schedules" name="bucket_schedules">
+                    <small>与上方特殊巡检桶一一对应的巡检周期（小时），用英文逗号分隔。例如 `24,48`</small>
+                </div>
+                <div class="form-group">
+                    <label for="obs-bucket-payment-dates">桶包年到期日 (JSON):</label>
+                    <textarea id="obs-bucket-payment-dates" name="bucket_payment_dates" rows="5" placeholder='例如：&#10;{
+  "bucket-a": "2025-12-31",
+  "bucket-b": "2026-01-20"
+}'></textarea>
+                    <small>记录包年存储桶到期日的JSON对象。</small>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>企业微信机器人</legend>
+                <div class="form-group">
+                    <label for="wechat-webhook-url">Webhook URL:</label>
+                    <input type="text" id="wechat-webhook-url" name="webhook_url">
+                    <small>用于接收每日报告的企业微信机器人Webhook地址。</small>
+                </div>
+            </fieldset>
+        </form>
+
+        <button id="save-btn">保 存 配 置</button>
+        <p id="message"></p>
         <a href="/dashboard">前往监控面板</a>
     </div>
     <script src="/js/config.js"></script>
