@@ -1,4 +1,4 @@
-name: Setup Server Environment (Multi-OS)
+name: Setup Server Environment (Multi-OS, v2)
 
 # 允许手动触发
 on:
@@ -22,39 +22,41 @@ jobs:
           set -e # 确保任何命令失败都会使工作流失败
 
           # --- 1. 智能检测包管理器并安装软件 ---
-          if command -v apt-get &> /dev/null; then
+          if command -v apt-get > /dev/null 2>&1; then
               echo \"---> Detected Debian/Ubuntu OS. Using apt-get.\"
-              sudo apt-get update
+              sudo apt-get update -y
               sudo apt-get install -y docker.io nginx
-          elif command -v yum &> /dev/null; then
+          elif command -v yum > /dev/null 2>&1; then
               echo \"---> Detected RHEL/CentOS OS. Using yum.\"
               sudo yum install -y docker nginx
               echo \"---> Starting and enabling Docker service...\"
               sudo systemctl start docker
               sudo systemctl enable docker
           else
-              echo \"Error: Could not find a supported package manager (apt-get or yum). Exiting.\" >&2
+              echo \"Error: Could not find a supported package manager. Exiting.\" >&2
               exit 1
           fi
           echo \"---> Software installation complete.\"
 
-          # --- 2. 创建目录 --- 
+          # --- 2. 创建目录 ---
           echo \"---> Creating project directory...\"
           sudo mkdir -p /var/www/cloudcheck
           sudo chown ${{ secrets.SERVER_USERNAME }}:${{ secrets.SERVER_USERNAME }} /var/www/cloudcheck
 
-          # --- 3. 配置 Nginx --- 
+          # --- 3. 配置 Nginx (使用 Heredoc 以增加稳定性) ---
           echo \"---> Configuring Nginx for HTTP...\"
-          echo \"server {\n    listen 80;\n    server_name ${{ github.event.inputs.server_ip }};\n    location / {\n        proxy_pass http://127.0.0.1:3000;\n        proxy_set_header Host \\\$host;\n    }\n}\" | sudo tee /etc/nginx/sites-available/cloudcheck
-          
+          sudo tee /etc/nginx/sites-available/cloudcheck << EOL
+            server {
+                listen 80;\n    server_name ${{ github.event.inputs.server_ip }};\n\n    location / {\n        proxy_pass http://127.0.0.1:3000;\n        proxy_set_header Host \\\$host;\n        proxy_set_header X-Real-IP \\\$remote_addr;\n        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto http;\n    }\n}\nEOL
+
+          # --- 4. 启用站点并重启Nginx ---
           sudo rm -f /etc/nginx/sites-enabled/default
           if [ ! -L /etc/nginx/sites-enabled/cloudcheck ]; then
               sudo ln -s /etc/nginx/sites-available/cloudcheck /etc/nginx/sites-enabled/
           fi
 
-          # --- 4. 重启Nginx ---
           echo \"---> Restarting Nginx...\"
           sudo nginx -t
           sudo systemctl restart nginx
 
-          echo \"\n*** Server environment setup for HTTP is complete! ***\" 
+          echo \"\n*** Server environment setup for HTTP is complete! ***\"
