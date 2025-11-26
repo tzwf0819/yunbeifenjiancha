@@ -155,46 +155,48 @@
     </nav>
 
     <div class="container">
-        <div class="config-section">
-            <h2>全局配置</h2>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>OBS存储桶名称</label>
-                    <input type="text" id="obs-bucket-name" placeholder="例如：my-backup-bucket">
-                </div>
-                <div class="form-group">
-                    <label>华为云OBS AK</label>
-                    <input type="text" id="obs-ak" placeholder="请输入Access Key ID">
-                </div>
-                <div class="form-group">
-                    <label>华为云OBS SK</label>
-                    <input type="password" id="obs-sk" placeholder="请输入Secret Access Key">
-                </div>
-                <div class="form-group">
-                    <label>华为云OBS Endpoint</label>
-                    <input type="text" id="obs-endpoint" placeholder="例如：obs.cn-north-4.myhuaweicloud.com">
+        <div class="global-config">
+            <div class="config-section">
+                <h2>全局配置</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>OBS存储桶名称</label>
+                        <input type="text" id="obs-bucket-name" placeholder="例如：my-backup-bucket">
+                    </div>
+                    <div class="form-group">
+                        <label>华为云OBS AK</label>
+                        <input type="text" id="obs-ak" placeholder="请输入Access Key ID">
+                    </div>
+                    <div class="form-group">
+                        <label>华为云OBS SK</label>
+                        <input type="password" id="obs-sk" placeholder="请输入Secret Access Key">
+                    </div>
+                    <div class="form-group">
+                        <label>华为云OBS Endpoint</label>
+                        <input type="text" id="obs-endpoint" placeholder="例如：obs.cn-north-4.myhuaweicloud.com">
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="config-section">
-            <h2>企业微信通知</h2>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>企业微信 CorpID</label>
-                    <input type="text" id="wechat-corp-id" placeholder="请输入企业ID">
-                </div>
-                <div class="form-group">
-                    <label>企业微信 AgentID</label>
-                    <input type="text" id="wechat-agent-id" placeholder="请输入应用ID">
-                </div>
-                <div class="form-group">
-                    <label>企业微信 Secret</label>
-                    <input type="password" id="wechat-secret" placeholder="请输入应用Secret">
-                </div>
-                <div class="form-group">
-                    <label>接收用户 ToUser</label>
-                    <input type="text" id="wechat-touser" placeholder="例如：@all 或 userid1|userid2">
+            <div class="config-section">
+                <h2>企业微信通知</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>企业微信 CorpID</label>
+                        <input type="text" id="wechat-corp-id" placeholder="请输入企业ID">
+                    </div>
+                    <div class="form-group">
+                        <label>企业微信 AgentID</label>
+                        <input type="text" id="wechat-agent-id" placeholder="请输入应用ID">
+                    </div>
+                    <div class="form-group">
+                        <label>企业微信 Secret</label>
+                        <input type="password" id="wechat-secret" placeholder="请输入应用Secret">
+                    </div>
+                    <div class="form-group">
+                        <label>接收用户 ToUser</label>
+                        <input type="text" id="wechat-touser" placeholder="例如：@all 或 userid1|userid2">
+                    </div>
                 </div>
             </div>
         </div>
@@ -202,12 +204,12 @@
         <div class="config-section">
             <h2>备份任务列表</h2>
             <div id="task-list"></div>
-            <button type="button" id="add-task-btn" style="margin-top: 1rem;">+ 添加新任务</button>
+            <button type="button" id="add-task" style="margin-top: 1rem;">+ 添加新任务</button>
         </div>
 
         <div class="footer-actions">
              <p id="message" style="float: left; line-height: 2.5rem; margin: 0;"></p>
-            <button id="save-all-btn" class="primary-btn">保 存 全 部 配 置</button>
+            <button id="save-config" class="primary-btn">保 存 全 部 配 置</button>
         </div>
     </div>
 
