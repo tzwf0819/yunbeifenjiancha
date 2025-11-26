@@ -11,7 +11,7 @@ const taskRoutes = require('./routes/task.routes');
 const { webAuth } = require('./middleware/auth.middleware');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // --- 认证信息 (保持不变) ---
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'yida';
