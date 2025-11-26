@@ -116,20 +116,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         card.innerHTML = `
             <div class="task-header">
                 <h3>任务: <input type="text" class="task-name" value="${task.name || ''}" placeholder="任务名称"></h3>
-                <div class="task-id">ID: ${task.id || '保存后生成'}</div>
-                <button class="delete-task-btn">删除任务</button>
+                <div class="task-id">ID: ${task.id ? task.id.substring(0, 16) : '保存后生成'}</div>
             </div>
             <div class="task-body">
-                <input type="text" class="task-folder" value="${task.folder || ''}" placeholder="OBS 存储路径 (子目录)">
-                <input type="date" class="task-payment-due-date" value="${task.payment_due_date || ''}">
-                <input type="text" class="task-remark1" value="${task.remark1 || ''}" placeholder="备注1">
-                <input type="text" class="task-remark2" value="${task.remark2 || ''}" placeholder="备注2">
+                <div class="form-group">
+                    <label>OBS 存储路径</label>
+                    <input type="text" class="task-folder" value="${task.folder || ''}" placeholder="OBS 存储路径 (子目录)">
+                </div>
+                <div class="form-group">
+                    <label>付款到期日</label>
+                    <input type="date" class="task-payment-due-date" value="${task.payment_due_date || ''}">
+                </div>
+                <div class="form-group">
+                    <label>备注1</label>
+                    <input type="text" class="task-remark1" value="${task.remark1 || ''}" placeholder="备注1">
+                </div>
+                <div class="form-group">
+                    <label>备注2</label>
+                    <input type="text" class="task-remark2" value="${task.remark2 || ''}" placeholder="备注2">
+                </div>
             </div>
-            <h4>数据库列表</h4>
-            <div class="database-list"></div>
-            <button class="add-database-btn">添加数据库</button>
+            <div class="database-section">
+                <div class="database-section-header">
+                    <h4>数据库列表</h4>
+                    <button type="button" class="add-database-btn">+ 添加数据库</button>
+                </div>
+                <div class="database-header">
+                    <span>文件名前缀</span>
+                    <span>服务器</span>
+                    <span>用户名</span>
+                    <span>密码</span>
+                    <span>数据库名</span>
+                    <span>备份时间</span>
+                    <span>操作</span>
+                </div>
+                <div class="database-list"></div>
+            </div>
             <div class="task-actions">
-                 <button class="emergency-backup-btn" ${!task.id ? 'disabled' : ''}>${task.id ? '紧急备份' : '需先保存'}</button>
+                 <button type="button" class="delete-task-btn">删除任务</button>
+                 <button type="button" class="emergency-backup-btn primary-btn" ${!task.id ? 'disabled' : ''}>${task.id ? '紧急备份' : '需先保存'}</button>
             </div>
         `;
 

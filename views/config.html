@@ -76,12 +76,12 @@
             overflow: hidden; /* 保证子元素圆角 */
             transition: box-shadow 0.3s ease;
         }
-        .task-card:hover {
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+                .task-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
         }
         .task-header {
             background: #f9fafb;
-            padding: 1rem 1.5rem;
+            padding: 0.75rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -101,6 +101,7 @@
             font-size: inherit;
             font-weight: inherit;
             width: 250px;
+            padding: 8px 0;
         }
         .task-id {
             font-family: monospace;
@@ -115,21 +116,44 @@
             padding: 1.5rem;
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
+            gap: 1rem 1.5rem;
             background-color: #fff;
         }
 
-        /* 数据库行样式 (替换 database-table) */
-        .database-list {
-            padding: 0 1.5rem 1.5rem;
+        .task-body .form-group {
+            margin-bottom: 0;
         }
-        .database-row {
+
+        /* 数据库行样式 */
+        .database-section {
+             padding: 0 1.5rem 1.5rem;
+             background-color: #fff;
+        }
+        .database-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .database-section-header h4 {
+            margin: 0;
+        }
+        .database-header, .database-row {
             display: grid;
-            grid-template-columns: repeat(6, 1fr) auto;
+            grid-template-columns: repeat(6, 1fr) 80px;
             gap: 10px;
             padding: 10px;
-            border-bottom: 1px solid #f0f0f0;
             align-items: center;
+        }
+        .database-header {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #606266;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .database-row {
+            border-bottom: 1px solid #f0f0f0;
         }
         .database-row:last-child {
             border-bottom: none;
@@ -139,11 +163,25 @@
             font-size: 0.9rem;
             padding: 8px;
         }
-        h4 {
-            padding: 1rem 1.5rem 0;
-            margin-bottom: 0.5rem;
-            font-size: 1rem;
-            color: #333;
+        .add-database-btn, .delete-database-btn, .delete-task-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .add-database-btn { color: #3498db; font-weight: 600; }
+        .add-database-btn:hover { color: #2980b9; }
+
+        .delete-database-btn, .delete-task-btn {
+            color: #e74c3c;
+        }
+        .delete-database-btn:hover, .delete-task-btn:hover {
+            color: #c0392b;
+        }
+        .delete-task-btn {
+            font-size: 0.9rem;
         }
 
         .task-actions {
@@ -151,6 +189,10 @@
             text-align: right;
             background-color: #f9fafb;
             border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 1rem;
         }
         .emergency-backup-btn {
             transition: all 0.3s ease;
