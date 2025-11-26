@@ -11,7 +11,7 @@ const taskRoutes = require('./routes/task.routes');
 const { webAuth } = require('./middleware/auth.middleware');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000; // 恢复端口到 3000
 
 // --- 认证信息 (保持不变) ---
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'yida';
@@ -103,8 +103,28 @@ schedule.scheduleJob('30 8 * * *', async () => {
     await statusController.runScheduledReport();
 });
 
-// --- 服务器启动 ---
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`服务器在端口 ${PORT} 上成功启动，已加载新的任务API路由。`);
+// --- 服务器启动与优雅关停 ---
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`服务器在端口 ${PORT} 上成功启动。`);
     console.log('每日报告任务已计划在 08:30 执行。');
+    console.log('按下 Ctrl+C 来关闭服务器。');
 });
+
+const gracefulShutdown = () => {
+  console.log('收到关闭信号，正在优雅地关闭服务器...');
+  server.close(() => {
+    console.log('服务器已关闭。');
+    process.exit(0);
+  });
+
+  // 如果服务器在5秒内没有关闭，则强制退出
+  setTimeout(() => {
+    console.error('无法在5秒内优雅关闭，强制退出。');
+    process.exit(1);
+  }, 5000);
+};
+
+// 监听中断信号 (Ctrl+C)
+process.on('SIGINT', gracefulShutdown);
+// 监听终止信号
+process.on('SIGTERM', gracefulShutdown);
