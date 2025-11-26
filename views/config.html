@@ -74,8 +74,12 @@
             border-radius: 8px;
             margin-top: 1rem;
             overflow: hidden; /* 保证子元素圆角 */
+            transition: box-shadow 0.3s ease;
         }
-        .task-card-header {
+        .task-card:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .task-header {
             background: #f9fafb;
             padding: 1rem 1.5rem;
             display: flex;
@@ -83,15 +87,31 @@
             align-items: center;
             border-bottom: 1px solid #e0e0e0;
         }
-        .task-card-header input {
-            border: none;
-            background: transparent;
+         .task-header h3 {
+            margin: 0;
             font-size: 1.1rem;
             font-weight: 600;
-            width: 80%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .task-header input.task-name {
+            border: none;
+            background: transparent;
+            font-size: inherit;
+            font-weight: inherit;
+            width: 250px;
+        }
+        .task-id {
+            font-family: monospace;
+            font-size: 0.85rem;
+            background-color: #eef2f7;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #555;
         }
 
-        .task-card-body {
+        .task-body {
             padding: 1.5rem;
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -99,22 +119,45 @@
             background-color: #fff;
         }
 
-        .database-table {
+        /* 数据库行样式 (替换 database-table) */
+        .database-list {
+            padding: 0 1.5rem 1.5rem;
+        }
+        .database-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr) auto;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            align-items: center;
+        }
+        .database-row:last-child {
+            border-bottom: none;
+        }
+        .database-row input {
             width: 100%;
-            margin-top: 1rem;
-            border-collapse: collapse;
+            font-size: 0.9rem;
+            padding: 8px;
         }
-        .database-table th, .database-table td {
-            text-align: left;
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #eee;
-            vertical-align: middle;
+        h4 {
+            padding: 1rem 1.5rem 0;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            color: #333;
         }
-        .database-table thead th {
-            background-color: #f2f6fc;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #606266;
+
+        .task-actions {
+            padding: 1rem 1.5rem;
+            text-align: right;
+            background-color: #f9fafb;
+            border-top: 1px solid #e0e0e0;
+        }
+        .emergency-backup-btn {
+            transition: all 0.3s ease;
+        }
+        .emergency-backup-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
 
         .footer-actions {
