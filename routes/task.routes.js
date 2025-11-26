@@ -17,8 +17,8 @@ router.post('/:id/complete-emergency-backup', serviceAuth, taskController.comple
 // 触发一个任务的紧急备份
 router.post('/:id/trigger-emergency-backup', webAuth, taskController.triggerEmergencyBackup);
 
-// 获取一个任务的实时状态（用于前端轮询）
-router.get('/:id/status', webAuth, taskController.getTaskStatus);
+// 获取一个任务的实时状态（用于前端轮询 和 客户端检查）
+router.get('/:id/status', serviceAuth, taskController.getTaskStatus);
 
 
 module.exports = router;

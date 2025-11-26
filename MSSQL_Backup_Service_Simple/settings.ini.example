@@ -1,0 +1,10 @@
+[BACKUP_CLIENT]
+# 主服务的 URL 地址
+server_url = http://127.0.0.1:3001
+
+# 从 Web 界面的任务卡片上复制的唯一任务 ID
+task_id = your_unique_task_id_from_web_ui
+
+# 用于服务间认证的 API 密钥
+# 这个值必须与主服务 `middleware/auth.middleware.js` 文件中配置的 `API_KEY` 完全匹配
+api_key = your_secret_api_key
