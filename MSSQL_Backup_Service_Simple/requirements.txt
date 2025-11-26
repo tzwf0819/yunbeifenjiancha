@@ -1,0 +1,8 @@
+# MSSQL数据库备份服务依赖包
+# 核心依赖
+psutil>=5.9.0
+pyodbc>=4.0.0
+esdk-obs-python>=3.20.0
+
+# Windows服务依赖
+pywin32>=300

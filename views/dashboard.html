@@ -1,111 +1,182 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>监控面板 - OBS监控</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>监控面板 - 备份与巡视</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .collapsible {
-            background-color: #f1f1f1;
-            cursor: pointer;
-            padding: 18px;
-            width: 100%;
-            border: none;
-            text-align: left;
-            outline: none;
-            font-size: 15px;
-            margin-top: 20px;
+        body {
+            background-color: #f4f7f9;
         }
-        .collapsible:hover { background-color: #ddd; }
-        .content { padding: 0 18px; display: none; overflow: hidden; background-color: #f9f9f9; }
-        .file-table { width: 100%; margin-top: 10px; }
+
+        .container {
+            max-width: 1200px;
+        }
+
+        /* 导航栏样式 */
+        .main-nav {
+            background-color: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .main-nav .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .main-nav .nav-links a {
+            text-decoration: none;
+            color: #555;
+            padding: 1.5rem 1rem;
+            display: inline-block;
+            border-bottom: 2px solid transparent;
+        }
+
+        .main-nav .nav-links a.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+
+        /* 页面头部 */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.75rem;
+        }
+
+        /* 结果卡片 */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .result-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        .result-card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            background-color: #f9fafb;
+        }
+
+        .result-card-body {
+            padding: 1.5rem;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .status-dot.正常 {
+            background-color: #2ecc71; /* 绿色 */
+        }
+
+        .status-dot.异常 {
+            background-color: #e74c3c; /* 红色 */
+            animation: pulse 1.5s infinite;
+        }
+        
+        .db-name {
+            font-weight: 500;
+        }
+        .reason-text {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+
     </style>
 </head>
 <body>
+    <nav class="main-nav">
+        <div class="logo">备份与巡视</div>
+        <div class="nav-links">
+            <a href="/dashboard" class="active">监控面板</a>
+            <a href="/config">任务配置</a>
+        </div>
+    </nav>
+
     <div class="container">
-        <div class="dashboard-header">
-            <h1>OBS 存储桶监控面板</h1>
-            <div>
-                <button id="run-check-btn" class="primary-btn">立即开始巡检</button>
-                <a href="/config">前往配置页面</a>
+        <div class="page-header">
+            <h1>监控面板</h1>
+            <button id="run-check-btn" class="primary-btn">立即手动巡检</button>
+        </div>
+        <p id="message" style="margin-bottom: 1.5rem; color: #888;">最后更新时间：{{last_updated}}</p>
+
+        {{#error}}
+        <div class="error-box"><h2>加载错误</h2><p>{{error}}</p></div>
+        {{/error}}
+
+        <div class="results-grid" id="results-grid">
+            {{#grouped_results}}
+            <div class="result-card">
+                <div class="result-card-header">{{task_name}}</div>
+                <div class="result-card-body">
+                    {{#results}}
+                    <div class="status-item">
+                        <div class="status-indicator">
+                            <span class="status-dot {{status}}"></span>
+                            <span class="db-name">{{db_name}}</span>
+                        </div>
+                        <div class="reason-text">{{reason}}</div>
+                    </div>
+                    {{/results}}
+                </div>
             </div>
+            {{/grouped_results}}
+
+            {{^grouped_results}}
+            <div class="config-section" style="text-align:center;">
+                <h3>暂无备份任务</h3>
+                <p>请先前往“任务配置”页面添加您的第一个备份任务。</p>
+                <a href="/config" class="primary-btn">前往配置</a>
+            </div>
+            {{/grouped_results}}
         </div>
-        <p id="message">最后更新时间：{{last_updated}}</p>
-        
-        {{#error}}<div class="error-box"><h2>错误</h2><p>{{error}}</p></div>{{/error}}
-
-        <h2>巡检结果 (按备份项)</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>存储桶</th>
-                    <th>备份项</th>
-                    <th>状态</th>
-                    <th>最新文件名</th>
-                    <th>最新文件时间</th>
-                    <th>缴费日期</th>
-                    <th>原因</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{#review_results}}
-                <tr>
-                    <td>{{bucket_name}}</td>
-                    <td>{{item_prefix}}</td>
-                    <td class="{{status}}">{{status}}</td>
-                    <td>{{latest_file_name}}</td>
-                    <td>{{latest_time}}</td>
-                    <td>{{payment_due_date}}</td>
-                    <td>{{reason}}</td>
-                </tr>
-                {{/review_results}}
-            </tbody>
-        </table>
-
-        <h2>缴费表格</h2>
-        <table>
-             <thead>
-                <tr><th>存储桶名称</th><th>缴费日</th><th>到期日</th></tr>
-            </thead>
-            <tbody>
-                {{#expired_buckets}}
-                <tr>
-                    <td>{{name}}</td>
-                    <td>{{payment_date}}</td>
-                    <td>{{expiry_date}}</td>
-                </tr>
-                {{/expired_buckets}}
-            </tbody>
-        </table>
-
-        <button type="button" class="collapsible">展开/折叠 桶内文件全景</button>
-        <div class="content">
-            {{#all_bucket_files}}
-            <h3>{{bucket_name}}</h3>
-            <table class="file-table">
-                <thead><tr><th>文件名</th><th>上传时间</th><th>大小</th></tr></thead>
-                <tbody>
-                    {{#files}}
-                    <tr><td>{{name}}</td><td>{{time}}</td><td>{{size}}</td></tr>
-                    {{/files}}
-                </tbody>
-            </table>
-            {{/all_bucket_files}}
-        </div>
-
     </div>
+
     <script src="/js/dashboard.js"></script>
-    <script>
-        document.querySelector('.collapsible').addEventListener('click', function() {
-            this.classList.toggle('active');
-            var content = this.nextElementSibling;
-            if (content.style.display === "block") {
-                content.style.display = "none";
-            } else {
-                content.style.display = "block";
-            }
-        });
-    </script>
 </body>
 </html>

@@ -1,48 +1,214 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>巡视任务配置中心</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设置 - 备份与巡视任务配置中心</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .bucket-list { display: flex; flex-direction: column; gap: 20px; }
-        .bucket-card { border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f9f9f9; }
-        .bucket-card h3 { margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
-        .item-table { width: 100%; margin-top: 10px; border-collapse: collapse; }
-        .item-table th, .item-table td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
-        .item-table input, .item-table select { width: 95%; }
-        .danger-btn { background-color: #e74c3c; color: white; }
+        /* 更现代的全局样式 */
+        body {
+            background-color: #f4f7f9;
+        }
+
+        .container {
+            max-width: 1200px;
+        }
+
+        /* 导航栏样式 */
+        .main-nav {
+            background-color: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .main-nav .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .main-nav .nav-links a {
+            text-decoration: none;
+            color: #555;
+            padding: 1.5rem 1rem;
+            display: inline-block;
+            border-bottom: 2px solid transparent;
+        }
+
+        .main-nav .nav-links a.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        
+        /* 卡片式布局 */
+        .config-section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .config-section h2 {
+            margin-top: 0;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+            font-size: 1.25rem;
+        }
+        
+        /* 表单网格 */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* 任务卡片 */
+        .task-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-top: 1rem;
+            overflow: hidden; /* 保证子元素圆角 */
+        }
+        .task-card-header {
+            background: #f9fafb;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .task-card-header input {
+            border: none;
+            background: transparent;
+            font-size: 1.1rem;
+            font-weight: 600;
+            width: 80%;
+        }
+
+        .task-card-body {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            background-color: #fff;
+        }
+
+        .database-table {
+            width: 100%;
+            margin-top: 1rem;
+            border-collapse: collapse;
+        }
+        .database-table th, .database-table td {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+        }
+        .database-table thead th {
+            background-color: #f2f6fc;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #606266;
+        }
+
+        .footer-actions {
+            position: sticky;
+            bottom: 0;
+            background: #fff;
+            padding: 1rem 2rem;
+            border-top: 1px solid #e0e0e0;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+            text-align: right;
+        }
+
+        #add-task-btn {
+            width: 100%;
+            padding: 1rem;
+            background-color: #eaf5ff;
+            color: #3498db;
+            border: 1px dashed #a0cfff;
+            cursor: pointer;
+            font-size: 1rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        #add-task-btn:hover {
+            background-color: #dcedff;
+            border-color: #79bbff;
+        }
+
     </style>
 </head>
 <body>
+    <nav class="main-nav">
+        <div class="logo">备份与巡视</div>
+        <div class="nav-links">
+            <a href="/dashboard">监控面板</a>
+            <a href="/config" class="active">任务配置</a>
+        </div>
+    </nav>
+
     <div class="container">
-        <h1>巡视任务配置中心</h1>
-        
-        <fieldset>
-            <legend>全局配置</legend>
-            <div class="grid-container">
-                <div class="form-group"><label for="obs-ak">华为云OBS AK:</label><input type="text" id="obs-ak"></div>
-                <div class="form-group"><label for="obs-sk">华为云OBS SK:</label><input type="password" id="obs-sk"></div>
-                <div class="form-group"><label for="obs-endpoint">华为云OBS Endpoint:</label><input type="text" id="obs-endpoint"></div>
-                <div class="form-group"><label for="wechat-corp-id">企业微信 CorpID:</label><input type="text" id="wechat-corp-id"></div>
-                <div class="form-group"><label for="wechat-agent-id">企业微信 AgentID:</label><input type="text" id="wechat-agent-id"></div>
-                <div class="form-group"><label for="wechat-secret">企业微信 Secret:</label><input type="password" id="wechat-secret"></div>
-                <div class="form-group"><label for="wechat-touser">接收用户 ToUser:</label><input type="text" id="wechat-touser"></div>
+        <div class="config-section">
+            <h2>全局配置</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>OBS存储桶名称</label>
+                    <input type="text" id="obs-bucket-name" placeholder="例如：my-backup-bucket">
+                </div>
+                <div class="form-group">
+                    <label>华为云OBS AK</label>
+                    <input type="text" id="obs-ak" placeholder="请输入Access Key ID">
+                </div>
+                <div class="form-group">
+                    <label>华为云OBS SK</label>
+                    <input type="password" id="obs-sk" placeholder="请输入Secret Access Key">
+                </div>
+                <div class="form-group">
+                    <label>华为云OBS Endpoint</label>
+                    <input type="text" id="obs-endpoint" placeholder="例如：obs.cn-north-4.myhuaweicloud.com">
+                </div>
             </div>
-        </fieldset>
+        </div>
 
-        <fieldset>
-            <legend>存储桶巡视配置</legend>
-            <div id="bucket-list" class="bucket-list">
-                <!-- JS动态生成存储桶卡片 -->
+        <div class="config-section">
+            <h2>企业微信通知</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>企业微信 CorpID</label>
+                    <input type="text" id="wechat-corp-id" placeholder="请输入企业ID">
+                </div>
+                <div class="form-group">
+                    <label>企业微信 AgentID</label>
+                    <input type="text" id="wechat-agent-id" placeholder="请输入应用ID">
+                </div>
+                <div class="form-group">
+                    <label>企业微信 Secret</label>
+                    <input type="password" id="wechat-secret" placeholder="请输入应用Secret">
+                </div>
+                <div class="form-group">
+                    <label>接收用户 ToUser</label>
+                    <input type="text" id="wechat-touser" placeholder="例如：@all 或 userid1|userid2">
+                </div>
             </div>
-            <button type="button" id="add-bucket-card-btn" class="secondary-btn" style="margin-top: 15px;">+ 添加新的存储桶</button>
-        </fieldset>
+        </div>
 
-        <button id="save-all-btn">保 存 全 部 配 置</button>
-        <p id="message"></p>
-        <a href="/dashboard">前往监控面板</a>
+        <div class="config-section">
+            <h2>备份任务列表</h2>
+            <div id="task-list"></div>
+            <button type="button" id="add-task-btn" style="margin-top: 1rem;">+ 添加新任务</button>
+        </div>
+
+        <div class="footer-actions">
+             <p id="message" style="float: left; line-height: 2.5rem; margin: 0;"></p>
+            <button id="save-all-btn" class="primary-btn">保 存 全 部 配 置</button>
+        </div>
     </div>
 
     <script src="/js/config-refactored.js"></script>

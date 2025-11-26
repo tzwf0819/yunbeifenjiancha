@@ -1,0 +1,35 @@
+{
+  "huawei_obs": {
+    "bucket_name": "yidianjicheng-backeup",
+    "ak": "JGMRCZ08USSPRCK3DIBK",
+    "sk": "QpmlQ5Otukjd05geRDHPt847hH2Fxt4yQiYOJgVM",
+    "endpoint": "obs.cn-north-4.myhuaweicloud.com"
+  },
+  "wechat_app": {
+    "corp_id": "1000003",
+    "agent_id": "ww70c10ba506f8a96f",
+    "secret": "aRAWS8Fw1LPnyn7QCsFjsdS29dhY6p4DynQFVXjGZP4",
+    "touser": "WeiShaoYan"
+  },
+  "tasks": [
+    {
+      "name": "yidatest",
+      "folder": "yidaruanjian",
+      "payment_due_date": "2025-11-26",
+      "remark1": "222 882 019",
+      "remark2": "",
+      "databases": [
+        {
+          "prefix": "yidaruanjian",
+          "server": "localhost",
+          "user": "sa",
+          "pass": "shaoyansa",
+          "name": "yidaruanjian",
+          "times": "08:00"
+        }
+      ],
+      "id": "a8b4f0cde9d2a1b3",
+      "emergency_backup": "idle"
+    }
+  ]
+}

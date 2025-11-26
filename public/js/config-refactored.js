@@ -3,184 +3,330 @@ document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('authToken');
     if (!token) return window.location.href = '/login';
 
-    const bucketList = document.getElementById('bucket-list');
+    // --- DOM Elements ---
+    const taskList = document.getElementById('task-list');
     const message = document.getElementById('message');
-    
-    let currentConfig = { huawei_obs: {}, wechat_app: {}, buckets: [] };
+    const saveButton = document.getElementById('save-config');
+    const addTaskButton = document.getElementById('add-task');
+    const obsAkInput = document.getElementById('obs-ak');
+    const obsSkInput = document.getElementById('obs-sk');
+    const obsEndpointInput = document.getElementById('obs-endpoint');
+    const obsBucketNameInput = document.getElementById('obs-bucket-name');
+    const wechatCorpIdInput = document.getElementById('wechat-corp-id');
+    const wechatAgentIdInput = document.getElementById('wechat-agent-id');
+    const wechatSecretInput = document.getElementById('wechat-secret');
+    const wechatToUserInput = document.getElementById('wechat-touser');
 
+    let currentConfig = {};
+
+    // --- Utility Functions ---
+    const showMessage = (msg, type = 'info') => {
+        message.textContent = msg;
+        message.className = `message ${type}`;
+        setTimeout(() => message.textContent = '', 3000);
+    };
+
+    const debounce = (func, delay) => {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), delay);
+        };
+    };
+
+    // --- Data Fetching and Saving ---
     const fetchConfig = async () => {
         try {
-            const response = await fetch('/api/config', { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch('/api/config', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (response.status === 401) return window.location.href = '/login';
-            const loadedConfig = await response.json();
-            currentConfig = { ...currentConfig, ...loadedConfig };
-            if (!currentConfig.buckets) currentConfig.buckets = [];
-            renderGlobalConfig();
-            renderAllBucketCards();
+            if (!response.ok) throw new Error(`网络响应错误: ${response.statusText}`);
+            currentConfig = await response.json();
+            renderUI();
         } catch (e) {
-            console.error("Config load error:", e);
-            message.textContent = '加载配置失败。';
-            message.className = 'error-message';
+            showMessage(`加载配置失败: ${e.message}`, 'error');
         }
     };
 
-    const renderGlobalConfig = () => {
-        const { huawei_obs, wechat_app } = currentConfig;
-        if (huawei_obs) {
-            document.getElementById('obs-ak').value = huawei_obs.ak || '';
-            document.getElementById('obs-sk').value = huawei_obs.sk || '';
-            document.getElementById('obs-endpoint').value = huawei_obs.endpoint || '';
-        }
-        if (wechat_app) {
-            document.getElementById('wechat-corp-id').value = wechat_app.corp_id || '';
-            document.getElementById('wechat-agent-id').value = wechat_app.agent_id || '';
-            document.getElementById('wechat-secret').value = wechat_app.secret || '';
-            document.getElementById('wechat-touser').value = wechat_app.touser || '';
-        }
-    };
-
-    const createBucketCard = (bucket, index) => {
-        const card = document.createElement('div');
-        card.className = 'bucket-card';
-        card.dataset.index = index;
-        
-        card.innerHTML = `
-            <h3>
-                <input type="text" class="bucket-name-input" placeholder="存储桶名称" value="${bucket.name || ''}" style="border:none; background:transparent; font-size: 1.17em; font-weight: bold;">
-                <button type="button" class="delete-bucket-btn danger-btn">删除此桶</button>
-            </h3>
-            <div class="form-group">
-                <label>缴费日期:</label>
-                <input type="date" class="bucket-payment-due-date" value="${bucket.payment_due_date || ''}">
-            </div>
-            <table class="item-table">
-                <thead>
-                    <tr>
-                        <th>备份文件名前缀</th>
-                        <th>备份计划</th>
-                        <th>保留最新3个</th>
-                        <th style="width: 50px;">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${(bucket.items || []).map((item, itemIndex) => `
-                        <tr data-item-index="${itemIndex}">
-                            <td><input type="text" class="item-prefix" value="${item.prefix}"></td>
-                            <td>
-                                <select class="item-schedule">
-                                    <option value="daily_1" ${item.schedule === 'daily_1' ? 'selected' : ''}>每天 1 次</option>
-                                    <option value="daily_2" ${item.schedule === 'daily_2' ? 'selected' : ''}>每天 2 次</option>
-                                    <option value="daily_3" ${item.schedule === 'daily_3' ? 'selected' : ''}>每天 3 次</option>
-                                    <option value="hourly_1" ${item.schedule === 'hourly_1' ? 'selected' : ''}>每小时 1 次</option>
-                                </select>
-                            </td>
-                            <td><input type="checkbox" class="item-retain" ${item.retain_latest_3 ? 'checked' : ''}></td>
-                            <td><button type="button" class="delete-item-btn danger-btn">-</button></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-            <button type="button" class="add-item-btn secondary-btn" style="margin-top: 10px;">+ 添加备份文件规则</button>
-        `;
-        return card;
-    };
-    
-    const renderAllBucketCards = () => {
-        bucketList.innerHTML = '';
-        currentConfig.buckets.forEach((bucket, index) => {
-            bucketList.appendChild(createBucketCard(bucket, index));
-        });
-    };
-
-    document.getElementById('add-bucket-card-btn').addEventListener('click', () => {
-        const newBucket = { name: '', payment_due_date: '', items: [] };
-        currentConfig.buckets.push(newBucket);
-        renderAllBucketCards();
-    });
-
-    bucketList.addEventListener('click', (e) => {
-        const card = e.target.closest('.bucket-card');
-        if (!card) return;
-
-        const bucketIndex = parseInt(card.dataset.index, 10);
-
-        if (e.target.classList.contains('delete-bucket-btn')) {
-            if (confirm(`确定要删除存储桶 ${currentConfig.buckets[bucketIndex].name || '新存储桶'} 吗？`)) {
-                currentConfig.buckets.splice(bucketIndex, 1);
-                renderAllBucketCards();
-            }
-        }
-
-        if (e.target.classList.contains('add-item-btn')) {
-            if (!currentConfig.buckets[bucketIndex].items) {
-                currentConfig.buckets[bucketIndex].items = [];
-            }
-            currentConfig.buckets[bucketIndex].items.push({ prefix: '', schedule: 'daily_1', retain_latest_3: false });
-            renderAllBucketCards();
-        }
-
-        if (e.target.classList.contains('delete-item-btn')) {
-            const itemIndex = parseInt(e.target.closest('tr').dataset.itemIndex, 10);
-            currentConfig.buckets[bucketIndex].items.splice(itemIndex, 1);
-            renderAllBucketCards();
-        }
-    });
-
-    document.getElementById('save-all-btn').addEventListener('click', async () => {
-        const newBuckets = [];
-        document.querySelectorAll('.bucket-card').forEach(card => {
-            const bucketName = card.querySelector('.bucket-name-input').value.trim();
-            if (!bucketName) return;
-
-            const items = [];
-            card.querySelectorAll('.item-table tbody tr').forEach(row => {
-                const prefix = row.querySelector('.item-prefix').value.trim();
-                if (prefix) {
-                    items.push({
-                        prefix: prefix,
-                        schedule: row.querySelector('.item-schedule').value,
-                        retain_latest_3: row.querySelector('.item-retain').checked
-                    });
-                }
-            });
-
-            newBuckets.push({
-                name: bucketName,
-                payment_due_date: card.querySelector('.bucket-payment-due-date').value,
-                items: items
-            });
-        });
-
-        const finalConfig = {
-            huawei_obs: {
-                ak: document.getElementById('obs-ak').value.trim(),
-                sk: document.getElementById('obs-sk').value.trim(),
-                endpoint: document.getElementById('obs-endpoint').value.trim()
-            },
-            wechat_app: {
-                corp_id: document.getElementById('wechat-corp-id').value.trim(),
-                agent_id: document.getElementById('wechat-agent-id').value.trim(),
-                secret: document.getElementById('wechat-secret').value.trim(),
-                touser: document.getElementById('wechat-touser').value.trim()
-            },
-            buckets: newBuckets
-        };
-        
+    const saveConfig = async () => {
+        saveButton.disabled = true;
+        saveButton.textContent = '保存中...';
         try {
             const response = await fetch('/api/config', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(finalConfig)
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(currentConfig)
             });
+            if (!response.ok) throw new Error('保存失败');
             const result = await response.json();
-            message.textContent = result.success ? '保存成功！' : (result.message || '保存失败！');
-            message.className = result.success ? 'success-message' : 'error-message';
-            fetchConfig();
-        } catch (error) {
-            message.textContent = `保存失败: ${error.message}`;
-            message.className = 'error-message';
+            showMessage(result.message, 'success');
+            await fetchConfig(); // Re-fetch to get new IDs if any
+        } catch (e) {
+            showMessage(e.message, 'error');
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = '保存配置';
         }
+    };
+
+    // --- Rendering Functions ---
+    const renderUI = () => {
+        renderGlobalConfig();
+        renderAllTaskCards();
+    };
+
+    const renderGlobalConfig = () => {
+        obsAkInput.value = currentConfig.huawei_obs?.ak || '';
+        obsSkInput.value = currentConfig.huawei_obs?.sk || '';
+        obsEndpointInput.value = currentConfig.huawei_obs?.endpoint || '';
+        obsBucketNameInput.value = currentConfig.huawei_obs?.bucket_name || '';
+        wechatCorpIdInput.value = currentConfig.wechat_app?.corp_id || '';
+        wechatAgentIdInput.value = currentConfig.wechat_app?.agent_id || '';
+        wechatSecretInput.value = currentConfig.wechat_app?.secret || '';
+        wechatToUserInput.value = currentConfig.wechat_app?.touser || '';
+    };
+
+    const createDatabaseRow = (db, taskIndex, dbIndex) => {
+        const row = document.createElement('div');
+        row.className = 'database-row';
+        row.dataset.dbIndex = dbIndex;
+        row.innerHTML = `
+            <input type="text" class="db-prefix" value="${db.prefix || ''}" placeholder="文件名前缀">
+            <input type="text" class="db-server" value="${db.server || ''}" placeholder="数据库服务器">
+            <input type="text" class="db-user" value="${db.user || ''}" placeholder="用户名">
+            <input type="password" class="db-pass" value="${db.pass || ''}" placeholder="密码">
+            <input type="text" class="db-name" value="${db.name || ''}" placeholder="数据库名">
+            <input type="text" class="db-times" value="${db.times || ''}" placeholder="备份时间 (HH:mm)">
+            <button class="delete-database-btn">删除库</button>
+        `;
+        return row;
+    };
+
+    const createTaskCard = (task, taskIndex) => {
+        const card = document.createElement('div');
+        card.className = 'task-card';
+        card.dataset.taskIndex = taskIndex;
+        card.dataset.taskId = task.id || ''; // Store the unique ID
+
+        card.innerHTML = `
+            <div class="task-header">
+                <h3>任务: <input type="text" class="task-name" value="${task.name || ''}" placeholder="任务名称"></h3>
+                <div class="task-id">ID: ${task.id || '保存后生成'}</div>
+                <button class="delete-task-btn">删除任务</button>
+            </div>
+            <div class="task-body">
+                <input type="text" class="task-folder" value="${task.folder || ''}" placeholder="OBS 存储路径 (子目录)">
+                <input type="date" class="task-payment-due-date" value="${task.payment_due_date || ''}">
+                <input type="text" class="task-remark1" value="${task.remark1 || ''}" placeholder="备注1">
+                <input type="text" class="task-remark2" value="${task.remark2 || ''}" placeholder="备注2">
+            </div>
+            <h4>数据库列表</h4>
+            <div class="database-list"></div>
+            <button class="add-database-btn">添加数据库</button>
+            <div class="task-actions">
+                 <button class="emergency-backup-btn" ${!task.id ? 'disabled' : ''}>${task.id ? '紧急备份' : '需先保存'}</button>
+            </div>
+        `;
+
+        const dbList = card.querySelector('.database-list');
+        (task.databases || []).forEach((db, dbIndex) => {
+            dbList.appendChild(createDatabaseRow(db, taskIndex, dbIndex));
+        });
+
+        return card;
+    };
+
+    const renderAllTaskCards = () => {
+        taskList.innerHTML = '';
+        (currentConfig.tasks || []).forEach((task, index) => {
+            taskList.appendChild(createTaskCard(task, index));
+        });
+    };
+
+    // --- Event Handlers ---
+    const updateGlobalConfig = () => {
+        currentConfig.huawei_obs = {
+            ak: obsAkInput.value,
+            sk: obsSkInput.value,
+            endpoint: obsEndpointInput.value,
+            bucket_name: obsBucketNameInput.value,
+        };
+        currentConfig.wechat_app = {
+            corp_id: wechatCorpIdInput.value,
+            agent_id: wechatAgentIdInput.value,
+            secret: wechatSecretInput.value,
+            touser: wechatToUserInput.value,
+        };
+    };
+
+    const handleTaskListChange = (e) => {
+        const taskCard = e.target.closest('.task-card');
+        if (!taskCard) return;
+
+        const taskIndex = parseInt(taskCard.dataset.taskIndex, 10);
+        const task = currentConfig.tasks[taskIndex];
+
+        if (e.target.matches('.task-name, .task-folder, .task-payment-due-date, .task-remark1, .task-remark2')) {
+            task.name = taskCard.querySelector('.task-name').value;
+            task.folder = taskCard.querySelector('.task-folder').value;
+            task.payment_due_date = taskCard.querySelector('.task-payment-due-date').value;
+            task.remark1 = taskCard.querySelector('.task-remark1').value;
+            task.remark2 = taskCard.querySelector('.task-remark2').value;
+        }
+
+        const dbRow = e.target.closest('.database-row');
+        if (dbRow) {
+            const dbIndex = parseInt(dbRow.dataset.dbIndex, 10);
+            const db = task.databases[dbIndex];
+            db.prefix = dbRow.querySelector('.db-prefix').value;
+            db.server = dbRow.querySelector('.db-server').value;
+            db.user = dbRow.querySelector('.db-user').value;
+            db.pass = dbRow.querySelector('.db-pass').value;
+            db.name = dbRow.querySelector('.db-name').value;
+            db.times = dbRow.querySelector('.db-times').value;
+        }
+    };
+    
+    const handleTaskListClick = (e) => {
+        const taskCard = e.target.closest('.task-card');
+        if (!taskCard) return;
+        
+        const taskIndex = parseInt(taskCard.dataset.taskIndex, 10);
+
+        if (e.target.classList.contains('delete-task-btn')) {
+            if (confirm(`确定要删除任务 "${currentConfig.tasks[taskIndex].name}"吗？`)) {
+                currentConfig.tasks.splice(taskIndex, 1);
+                renderUI();
+            }
+        }
+
+        if (e.target.classList.contains('add-database-btn')) {
+            currentConfig.tasks[taskIndex].databases.push({});
+            renderUI();
+        }
+
+        const dbRow = e.target.closest('.database-row');
+        if (e.target.classList.contains('delete-database-btn') && dbRow) {
+            const dbIndex = parseInt(dbRow.dataset.dbIndex, 10);
+            currentConfig.tasks[taskIndex].databases.splice(dbIndex, 1);
+            renderUI();
+        }
+        
+        // --- Emergency Backup ---
+        if (e.target.classList.contains('emergency-backup-btn')) {
+             handleEmergencyBackup(e);
+        }
+    };
+    
+    // --- New Emergency Backup Logic ---
+    const handleEmergencyBackup = async (e) => {
+        const button = e.target;
+        const card = button.closest('.task-card');
+        const taskId = card.dataset.taskId;
+
+        if (!taskId) return;
+
+        button.disabled = true;
+        button.textContent = '请求中...';
+
+        try {
+            const response = await fetch(`/api/tasks/${taskId}/trigger-emergency-backup`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.message || `HTTP错误 ${response.status}`);
+            }
+            
+            showMessage(`任务 ${taskId.substring(0,8)}... 的紧急备份已触发`, 'info');
+            pollStatus(button, taskId);
+
+        } catch (error) {
+            showMessage(`触发失败: ${error.message}`, 'error');
+            button.disabled = false;
+            button.textContent = '紧急备份';
+        }
+    };
+
+    const pollStatus = (button, taskId) => {
+        button.textContent = '待处理';
+        const pollInterval = 3000; // 3 seconds
+        const timeout = 300000; // 5 minutes
+        let elapsedTime = 0;
+
+        const intervalId = setInterval(async () => {
+            elapsedTime += pollInterval;
+
+            if (elapsedTime >= timeout) {
+                clearInterval(intervalId);
+                button.textContent = '轮询超时';
+                button.disabled = false;
+                button.style.backgroundColor = '';
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/tasks/${taskId}/status`, { 
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    clearInterval(intervalId);
+                    button.textContent = '状态未知';
+                    button.disabled = false;
+                    return;
+                }
+                const { status } = await res.json();
+
+                switch (status) {
+                    case 'pending':
+                        button.textContent = '备份中...';
+                        button.style.backgroundColor = '#f39c12'; // Orange
+                        break;
+                    case 'completed':
+                        button.textContent = '已完成!';
+                        button.style.backgroundColor = '#2ecc71'; // Green
+                        clearInterval(intervalId);
+                        setTimeout(() => { // Reset button after a while
+                            button.disabled = false;
+                            button.textContent = '紧急备份';
+                            button.style.backgroundColor = '';
+                        }, 5000);
+                        break;
+                    case 'idle':
+                    default:
+                        // Nothing to do, just keep polling
+                        button.textContent = '待处理';
+                        break;
+                }
+            } catch (err) {
+                clearInterval(intervalId);
+                button.textContent = '轮询出错';
+                button.disabled = false;
+            }
+        }, pollInterval);
+    };
+
+    // --- Event Listeners ---
+    document.querySelector('.global-config').addEventListener('input', debounce(updateGlobalConfig, 400));
+    taskList.addEventListener('input', debounce(handleTaskListChange, 400));
+    taskList.addEventListener('click', handleTaskListClick);
+    
+    saveButton.addEventListener('click', saveConfig);
+    
+    addTaskButton.addEventListener('click', () => {
+        currentConfig.tasks = currentConfig.tasks || [];
+        currentConfig.tasks.push({ name: '新任务', databases: [] });
+        renderUI();
     });
 
+    // --- Initial Load ---
     fetchConfig();
 });
