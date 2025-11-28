@@ -30,7 +30,7 @@ const attachAuthCookie = (res, token) => {
     res.cookie(AUTH_COOKIE_NAME, token, {
         httpOnly: true,
         sameSite: 'lax',
-        secure: IS_PRODUCTION,
+        secure: false, // 在生产环境下也允许HTTP设置Cookie
         maxAge: COOKIE_MAX_AGE
     });
 };
