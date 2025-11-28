@@ -20,6 +20,7 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           source: "."
           target: "/www/wwwroot/yidabackup"
+          exclude: "**/node_modules/**"
 
       - name: Setup and run application on server
         uses: appleboy/ssh-action@master
