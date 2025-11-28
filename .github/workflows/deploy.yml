@@ -35,8 +35,10 @@ jobs:
           script: |
             # 进入新项目的目录
             cd /www/wwwroot/yidabackup
+            echo "--- Current directory: $(pwd) ---"
 
             # 从 GitHub Secrets 创建 .env 文件
+            echo "--- Creating .env file ---"
             echo "ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}" > .env
             echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> .env
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
@@ -45,12 +47,15 @@ jobs:
             echo "WECHAT_CORP_ID=${{ secrets.WECHAT_CORP_ID }}" >> .env
             echo "WECHAT_AGENT_ID=${{ secrets.WECHAT_AGENT_ID }}" >> .env
             echo "WECHAT_SECRET=${{ secrets.WECHAT_SECRET }}" >> .env
+            echo "--- .env file created ---"
 
             # 安装依赖
-            echo "正在安装npm依赖..."
-            npm install --production
+            echo "--- Starting npm install (using Taobao registry) ---"
+            npm install --production --registry=https://registry.npmmirror.com
+            echo "--- npm install completed ---"
 
             # 使用 PM2 启动或重启应用
-            echo "正在使用PM2启动应用..."
+            echo "--- Starting application with PM2 ---"
             # 确保服务器上已全局安装 pm2: npm install -g pm2
             PORT=11451 pm2 startOrRestart ecosystem.config.js
+            echo "--- Deployment script finished ---"
