@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装生产环境依赖，并使用淘宝镜像源加速
-RUN npm install --production --registry=https://registry.npmmirror.com
+RUN npm install --production --registry=https://registry.npmmirror.com && npm install pm2 -g --registry=https://registry.npmmirror.com
 
 # 将所有项目文件复制到工作目录
 COPY . .
@@ -18,4 +18,4 @@ EXPOSE 3000
 
 # 定义容器启动时运行的命令
 # 使用 pm2-runtime 是在 Docker 容器中运行 PM2 的正确方式
-CMD [ "pm2-runtime", "start", "ecosystem.config.js" ]
+CMD ["npm", "start"]
