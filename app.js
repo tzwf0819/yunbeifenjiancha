@@ -45,6 +45,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, 'public')));
 
+
 // --- 页面路由 ---
 
 // 辅助函数：按任务名称对巡检结果进行分组 (保持不变)
