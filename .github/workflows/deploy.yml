@@ -53,6 +53,7 @@ jobs:
               --name $CONTAINER_NAME \
               --restart always \
               -p 11451:3000 \
+              -v /www/wwwroot/yidabackup/config.json:/app/config.json \ # 核心：挂载主机配置文件到容器
               -e ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
               -e ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
               -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
