@@ -84,16 +84,6 @@ const loadConfig = () => {
     finalConfig.wechat_app.agent_id = process.env.WECHAT_AGENT_ID || '';
     finalConfig.wechat_app.secret = process.env.WECHAT_SECRET || '';
 
-    // 为每个任务的数据库注入密码
-    finalConfig.tasks.forEach(task => {
-        if (task.name && Array.isArray(task.databases)) {
-            task.databases.forEach(db => {
-                const envVarName = `DB_PASS_${task.name.toUpperCase()}`;
-                db.pass = process.env[envVarName] || '';
-            });
-        }
-    });
-
     return finalConfig;
 };
 

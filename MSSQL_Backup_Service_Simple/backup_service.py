@@ -47,7 +47,14 @@ class BackupTaskRunner:
         log_file = os.path.join(self.log_dir, f"task_{self.task_id}.log")
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         
-        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        # Use TimedRotatingFileHandler for daily log rotation at midnight.
+        file_handler = logging.handlers.TimedRotatingFileHandler(
+            log_file,
+            when='midnight', # Rotate at midnight
+            backupCount=30,  # Keep 30 days of logs
+            encoding='utf-8'
+        )
+        file_handler.suffix = "%Y-%m-%d" # Append date to old log files
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(formatter)
 

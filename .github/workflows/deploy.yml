@@ -1,4 +1,4 @@
-name: Deploy Application to BT Panel
+name: Deploy Backup Manager
 
 on:
   push:
@@ -9,47 +9,43 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Copy project files to server
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USERNAME }}
-        password: ${{ secrets.SERVER_PASSWORD }}
-        source: "."
-        target: "/www/wwwroot/cloudcheck" # <-- 更新为宝塔标准路径
+      - name: Copy project files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          source: "."
+          target: "/www/wwwroot/yidabackup"
 
-    - name: Build and Deploy Application on server
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USERNAME }}
-        password: ${{ secrets.SERVER_PASSWORD }}
-        script: |
-          # 进入宝塔的标准网站目录
-          cd /www/wwwroot/cloudcheck
+      - name: Setup and run application on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script: |
+            # 进入新项目的目录
+            cd /www/wwwroot/yidabackup
 
-          # 如果config.json不存在，则创建
-          if [ ! -f "config.json" ]; then
-            echo "{}" > config.json
-          fi
+            # 从 GitHub Secrets 创建 .env 文件
+            echo "ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}" > .env
+            echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> .env
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+            echo "HUAWEI_OBS_AK=${{ secrets.HUAWEI_OBS_AK }}" >> .env
+            echo "HUAWEI_OBS_SK=${{ secrets.HUAWEI_OBS_SK }}" >> .env
+            echo "WECHAT_CORP_ID=${{ secrets.WECHAT_CORP_ID }}" >> .env
+            echo "WECHAT_AGENT_ID=${{ secrets.WECHAT_AGENT_ID }}" >> .env
+            echo "WECHAT_SECRET=${{ secrets.WECHAT_SECRET }}" >> .env
 
-          # 构建Docker镜像
-          docker build -t obs-monitor:latest .
+            # 安装依赖
+            echo "正在安装npm依赖..."
+            npm install --production
 
-          # 停止并删除旧容器
-          docker stop obs-monitor-container || true
-          docker rm obs-monitor-container || true
-
-          # 启动新容器
-          docker run -d \
-            -p 127.0.0.1:3000:3000 \
-            --name obs-monitor-container \
-            --restart always \
-            -v /www/wwwroot/cloudcheck/config.json:/usr/src/app/config.json \
-            -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
-            -e ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }} \
-            -e ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }} \
-            obs-monitor:latest
+            # 使用 PM2 启动或重启应用
+            echo "正在使用PM2启动应用..."
+            # 确保服务器上已全局安装 pm2: npm install -g pm2
+            PORT=11451 pm2 startOrRestart ecosystem.config.js

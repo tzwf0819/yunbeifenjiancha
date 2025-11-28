@@ -20,6 +20,7 @@
           "name": "yidaruanjian",
           "server": "localhost",
           "user": "sa",
+          "pass": "shaoyansa",
           "times": "12:30,12:35,12:40",
           "backup_frequency": "每日三次",
           "retention_count": 3
