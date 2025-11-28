@@ -5,129 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>监控面板 - 备份与巡视</title>
     <link rel="stylesheet" href="/css/style.css">
-    <style>
-        body {
-            background-color: #f4f7f9;
-        }
-
-        .container {
-            max-width: 1200px;
-        }
-
-        /* 导航栏样式 */
-        .main-nav {
-            background-color: #fff;
-            border-bottom: 1px solid #e0e0e0;
-            padding: 0 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .main-nav .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .main-nav .nav-links a {
-            text-decoration: none;
-            color: #555;
-            padding: 1.5rem 1rem;
-            display: inline-block;
-            border-bottom: 2px solid transparent;
-        }
-
-        .main-nav .nav-links a.active {
-            color: #3498db;
-            border-bottom-color: #3498db;
-        }
-
-        /* 页面头部 */
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .page-header h1 {
-            font-size: 1.75rem;
-        }
-
-        /* 结果卡片 */
-        .results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .result-card {
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            overflow: hidden;
-        }
-
-        .result-card-header {
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid #eee;
-            font-weight: 600;
-            background-color: #f9fafb;
-        }
-
-        .result-card-body {
-            padding: 1.5rem;
-        }
-
-        .status-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .status-item:last-child {
-            border-bottom: none;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-
-        .status-dot.正常 {
-            background-color: #2ecc71; /* 绿色 */
-        }
-
-        .status-dot.异常 {
-            background-color: #e74c3c; /* 红色 */
-            animation: pulse 1.5s infinite;
-        }
-        
-        .db-name {
-            font-weight: 500;
-        }
-        .reason-text {
-            font-size: 0.85rem;
-            color: #888;
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
-        }
-
-    </style>
 </head>
 <body>
     <nav class="main-nav">
@@ -138,45 +15,143 @@
         </div>
     </nav>
 
-    <div class="container">
-        <div class="page-header">
-            <h1>监控面板</h1>
-            <button id="run-check-btn" class="primary-btn">立即手动巡检</button>
-        </div>
-        <p id="message" style="margin-bottom: 1.5rem; color: #888;">最后更新时间：{{last_updated}}</p>
+    <div class="container dashboard-container">
+        <header class="dashboard-hero panel">
+            <div class="hero-text">
+                <p class="eyebrow-text">REALTIME WATCH</p>
+                <h1>监控面板</h1>
+                <p class="page-subtitle">最近刷新时间 · {{last_updated}}</p>
+            </div>
+            <div class="hero-actions">
+                <a class="secondary-btn" href="/config">配置任务</a>
+                <button id="run-check-btn" class="primary-btn">立即巡检</button>
+            </div>
+        </header>
+
+        <p id="message" class="message info" aria-live="polite">数据更新于: {{last_updated}}</p>
+
+        {{#has_payment_warnings}}
+        <section class="panel payment-panel">
+            <div class="panel-heading">
+                <p class="eyebrow-text">缴费提醒</p>
+                <h2>需要关注的客户</h2>
+            </div>
+            <ul>
+                {{#payment_warnings}}
+                <li>{{.}}</li>
+                {{/payment_warnings}}
+            </ul>
+        </section>
+        {{/has_payment_warnings}}
 
         {{#error}}
-        <div class="error-box"><h2>加载错误</h2><p>{{error}}</p></div>
+        <section class="panel error-box" role="alert">
+            <h3>加载错误</h3>
+            <p>{{error}}</p>
+        </section>
         {{/error}}
 
-        <div class="results-grid" id="results-grid">
-            {{#grouped_results}}
-            <div class="result-card">
-                <div class="result-card-header">{{task_name}}</div>
-                <div class="result-card-body">
-                    {{#results}}
-                    <div class="status-item">
-                        <div class="status-indicator">
-                            <span class="status-dot {{status}}"></span>
-                            <span class="db-name">{{db_name}}</span>
-                        </div>
-                        <div class="reason-text">{{reason}}</div>
-                    </div>
-                    {{/results}}
+        <section class="panel results-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow-text">TASK OVERVIEW</p>
+                    <h2>备份任务总览</h2>
                 </div>
             </div>
-            {{/grouped_results}}
+            <div class="results-grid" id="results-grid">
+                {{#grouped_results}}
+                <article class="result-card" data-task-id="{{task_id}}" data-task-name="{{task_name}}" data-requires-payment="{{requires_payment}}" data-payment-due="{{payment_due_date}}">
+                    <div class="result-card-header">
+                        <div class="result-card-title">
+                            <span class="task-name">{{task_name}}</span>
+                            {{#requires_payment}}
+                            <span class="payment-badge">
+                                付费 · {{#payment_due_date}}{{payment_due_date}}{{/payment_due_date}}{{^payment_due_date}}未设置{{/payment_due_date}}
+                            </span>
+                            {{/requires_payment}}
+                            {{^requires_payment}}
+                            <span class="payment-badge">免审查客户</span>
+                            {{/requires_payment}}
+                        </div>
+                        <div class="result-card-actions">
+                            <button type="button" class="emergency-trigger-btn" data-task-id="{{task_id}}" data-task-name="{{task_name}}">紧急备份</button>
+                            <span class="toggle-arrow" data-task-id="{{task_id}}" data-loaded="false">&#9654;</span>
+                        </div>
+                    </div>
+                    <div class="result-card-body">
+                        {{#results}}
+                        <div class="status-item">
+                            <div class="status-indicator">
+                                <span class="status-dot {{status}}"></span>
+                                <span class="db-name">{{db_name}}</span>
+                            </div>
+                            <div class="reason-text">{{reason}}</div>
+                        </div>
+                        {{/results}}
 
-            {{^grouped_results}}
-            <div class="config-section" style="text-align:center;">
-                <h3>暂无备份任务</h3>
-                <p>请先前往“任务配置”页面添加您的第一个备份任务。</p>
-                <a href="/config" class="primary-btn">前往配置</a>
+                        <div class="emergency-status-bar" style="display: none;"></div>
+                        <div class="file-list-container" style="display: none;"></div>
+                    </div>
+                </article>
+                {{/grouped_results}}
+
+                {{^grouped_results}}
+                <div class="empty-state">
+                    <p class="eyebrow-text">暂无备份任务</p>
+                    <h3>请先前往“任务配置”页面添加任务</h3>
+                    <a href="/config" class="primary-btn">前往配置</a>
+                </div>
+                {{/grouped_results}}
             </div>
-            {{/grouped_results}}
-        </div>
+        </section>
     </div>
 
     <script src="/js/dashboard.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const runCheckBtn = document.getElementById('run-check-btn');
+            const message = document.getElementById('message');
+            const token = localStorage.getItem('authToken');
+
+            if (runCheckBtn) {
+                runCheckBtn.addEventListener('click', async () => {
+                    if (!token) {
+                        window.location.href = '/login';
+                        return;
+                    }
+
+                    runCheckBtn.disabled = true;
+                    runCheckBtn.textContent = '巡检中...';
+                    message.textContent = '正在触发巡检，请稍候...';
+
+                    try {
+                        const response = await fetch('/api/run-check', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            message.textContent = '巡检成功！页面即将刷新以展示最新结果...';
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        } else {
+                            throw new Error(result.message || '巡检失败');
+                        }
+
+                    } catch (error) {
+                        message.textContent = `操作失败: ${error.message}`;
+                        runCheckBtn.disabled = false;
+                        runCheckBtn.textContent = '立即巡检';
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

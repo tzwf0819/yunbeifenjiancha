@@ -6,30 +6,35 @@
     "endpoint": "obs.cn-north-4.myhuaweicloud.com"
   },
   "wechat_app": {
-    "corp_id": "1000003",
-    "agent_id": "ww70c10ba506f8a96f",
+    "corp_id": "ww70c10ba506f8a96f",
+    "agent_id": "1000003",
     "secret": "aRAWS8Fw1LPnyn7QCsFjsdS29dhY6p4DynQFVXjGZP4",
     "touser": "WeiShaoYan"
   },
   "tasks": [
     {
-      "name": "yidatest",
+      "id": "535d76e3-8413-482e-9a04-fa68c5987b80",
+      "name": "yidaruanjian",
       "folder": "yidaruanjian",
-      "payment_due_date": "2025-11-26",
-      "remark1": "222 882 019",
+      "remark1": "",
       "remark2": "",
+      "requires_payment": true,
+      "payment_due_date": "2025-11-29",
+      "emergency_backup": "completed",
+      "last_error": null,
+      "last_status_update": "2025-11-28T12:15:00.840Z",
       "databases": [
         {
           "prefix": "yidaruanjian",
+          "name": "yidaruanjian",
           "server": "localhost",
           "user": "sa",
           "pass": "shaoyansa",
-          "name": "yidaruanjian",
-          "times": "08:00"
+          "times": "12:30,12:35,12:40",
+          "backup_frequency": "每日三次",
+          "retention_count": 3
         }
-      ],
-      "id": "a8b4f0cde9d2a1b3",
-      "emergency_backup": "pending"
+      ]
     }
   ]
 }

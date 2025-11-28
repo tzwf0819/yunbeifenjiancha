@@ -1,0 +1,28 @@
+{
+    "review_results": [
+        {
+            "task_name": "yidaruanjian",
+            "task_id": "535d76e3-8413-482e-9a04-fa68c5987b80",
+            "db_name": "yidaruanjian",
+            "status": "异常",
+            "reason": "缺少计划时间：12:30, 12:35, 12:40",
+            "latest_file_name": "yidaruanjian_20251128_201456_EMERGENCY.bak",
+            "latest_time": "2025/11/28 20:14:56",
+            "expected_slots": [
+                "12:30",
+                "12:35",
+                "12:40"
+            ],
+            "missing_slots": [
+                "12:30",
+                "12:35",
+                "12:40"
+            ],
+            "requires_payment": true,
+            "payment_due_date": "2025-11-29",
+            "retention_count": 3
+        }
+    ],
+    "payment_warnings": [],
+    "last_updated": "2025/11/28 20:30:14"
+}

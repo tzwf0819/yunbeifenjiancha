@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发生错误</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .error-container {
+            text-align: center;
+            padding: 40px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .error-container h1 {
+            font-size: 2.5em;
+            color: #dc3545;
+            margin-bottom: 20px;
+        }
+        .error-container p {
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .error-container .btn {
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>发生错误</h1>
+        <p>{{ message }}</p>
+        <a href="/dashboard" class="btn">返回仪表盘</a>
+    </div>
+</body>
+</html>

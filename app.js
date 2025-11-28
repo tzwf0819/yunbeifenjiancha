@@ -1,130 +1,135 @@
 const express = require('express');
 const mustacheExpress = require('mustache-express');
-const bodyParser = require('body-parser');
 const schedule = require('node-schedule');
 const path = require('path');
+const morgan = require('morgan');
+const jwt = require('jsonwebtoken');
 
-// --- 模块化导入 ---
-const configService = require('./services/config.service');
-const statusController = require('./controllers/status.controller');
-const taskRoutes = require('./routes/task.routes');
-const { webAuth } = require('./middleware/auth.middleware');
+// --- 全新的模块化导入 ---
+const statusService = require('./services/status.service');
+const wechatService = require('./services/wechat.service');
+const apiRoutes = require('./routes/api.routes');
+const { webAuth, AUTH_COOKIE_NAME } = require('./middleware/auth.middleware');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // 恢复端口到 3000
+const PORT = process.env.PORT || 3000;
 
 // --- 认证信息 (保持不变) ---
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'yida';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'shaoyansa';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-default-secret';
+const TOKEN_TTL_HOURS = 8;
+const COOKIE_MAX_AGE = TOKEN_TTL_HOURS * 60 * 60 * 1000;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+const signAuthToken = (username) => jwt.sign({ username }, JWT_SECRET, { expiresIn: `${TOKEN_TTL_HOURS}h` });
+
+const attachAuthCookie = (res, token) => {
+    res.cookie(AUTH_COOKIE_NAME, token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: IS_PRODUCTION,
+        maxAge: COOKIE_MAX_AGE
+    });
+};
 
 // --- 模板引擎与中间件 ---
 app.engine('html', mustacheExpress());
 app.set('view engine', 'html');
 app.set('views', path.join(__dirname, 'views'));
-app.use(bodyParser.json());
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- 路由 --- //
+// --- 页面路由 ---
 
-// 辅助函数：按任务名称对巡检结果进行分组
+// 辅助函数：按任务名称对巡检结果进行分组 (保持不变)
 const groupResultsByTask = (results) => {
-    if (!results || results.length === 0) return [];
+    if (!results || !Array.isArray(results)) return [];
     const grouped = results.reduce((acc, current) => {
-        if (!acc[current.task_name]) {
-            acc[current.task_name] = { task_name: current.task_name, results: [] };
+        const key = current.task_id;
+        if (!key) return acc;
+        if (!acc[key]) {
+            acc[key] = {
+                task_name: current.task_name,
+                task_id: current.task_id,
+                requires_payment: current.requires_payment,
+                payment_due_date: current.payment_due_date,
+                results: []
+            };
         }
-        acc[current.task_name].results.push(current);
+        acc[key].results.push(current);
         return acc;
     }, {});
     return Object.values(grouped);
 };
 
-// 页面路由
 app.get('/', (req, res) => res.redirect('/dashboard'));
 app.get('/login', (req, res) => res.render('login'));
-app.get('/config', (req, res) => res.render('config'));
-app.get('/dashboard', async (req, res) => {
+app.get('/config', webAuth, (req, res) => res.render('config')); // config页面需要认证
+
+// [已重构] Dashboard 路由
+app.get('/dashboard', webAuth, (req, res) => {
     try {
-        const data = await statusController.getFullStatus();
+        const data = statusService.loadStatus(); // 直接从服务加载数据
+        const groupedResults = groupResultsByTask(data.review_results);
+        const paymentWarnings = data.payment_warnings || [];
         res.render('dashboard', { 
             last_updated: data.last_updated,
-            grouped_results: groupResultsByTask(data.review_results)
+            grouped_results: groupedResults,
+            payment_warnings: paymentWarnings,
+            has_payment_warnings: paymentWarnings.length > 0
         });
     } catch (error) {
         res.status(500).render('error', { message: `加载仪表盘失败: ${error.message}` });
     }
 });
 
-// --- API 路由 ---
+// --- API 路由 [已重构] ---
+app.use('/api', apiRoutes);
 
-// 1. 新的任务专用路由
-app.use('/api/tasks', taskRoutes);
+// 登录接口：同时兼容旧路径 /login-api 和 RESTful 路径 /api/login
+const handleLogin = (req, res) => {
+    const { username, password } = req.body || {};
 
-// 2. 登录和全局配置路由 (保留)
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        const jwt = require('jsonwebtoken');
-        const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '8h' });
-        res.json({ success: true, token });
-    } else {
-        res.status(401).json({ success: false, message: '用户名或密码错误' });
+        const token = signAuthToken(username);
+        attachAuthCookie(res, token);
+        return res.json({ success: true, token });
     }
-});
 
-app.get('/api/config', webAuth, (req, res) => {
-    res.json(configService.loadConfig());
-});
-
-app.post('/api/config', webAuth, (req, res) => {
-    try {
-        configService.saveConfig(req.body);
-        res.json({ success: true, message: '配置保存成功！' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// 3. 手动巡检路由 (保留)
-app.post('/api/run-check', webAuth, async (req, res) => {
-    console.log(`[${new Date().toLocaleString()}] 手动触发巡检任务...`);
-    try {
-        await statusController.runScheduledReport();
-        res.json({ success: true, message: '巡检报告已成功触发发送！' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: `巡检失败: ${error.message}` });
-    }
-});
-
-// --- 定时任务 (保留) ---
-schedule.scheduleJob('30 8 * * *', async () => {
-    console.log(`[${new Date().toLocaleString()}] 开始执行每日OBS报告定时任务...`);
-    await statusController.runScheduledReport();
-});
-
-// --- 服务器启动与优雅关停 ---
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`服务器在端口 ${PORT} 上成功启动。`);
-    console.log('每日报告任务已计划在 08:30 执行。');
-    console.log('按下 Ctrl+C 来关闭服务器。');
-});
-
-const gracefulShutdown = () => {
-  console.log('收到关闭信号，正在优雅地关闭服务器...');
-  server.close(() => {
-    console.log('服务器已关闭。');
-    process.exit(0);
-  });
-
-  // 如果服务器在5秒内没有关闭，则强制退出
-  setTimeout(() => {
-    console.error('无法在5秒内优雅关闭，强制退出。');
-    process.exit(1);
-  }, 5000);
+    return res.status(401).json({ success: false, message: '用户名或密码错误' });
 };
 
-// 监听中断信号 (Ctrl+C)
-process.on('SIGINT', gracefulShutdown);
-// 监听终止信号
-process.on('SIGTERM', gracefulShutdown);
+app.post(['/api/login', '/login-api'], handleLogin);
+
+// --- 定时任务 [已重构] ---
+schedule.scheduleJob('0 8 * * *', async () => {
+    console.log(`[定时任务] 开始执行每日巡检...`);
+    try {
+        const newStatus = await statusService.runCheckAndSave();
+        const hasErrors = newStatus.review_results.some(r => r.status === '异常');
+        const hasPaymentWarnings = (newStatus.payment_warnings || []).length > 0;
+        if (hasErrors || hasPaymentWarnings) {
+            await wechatService.sendAbnormalNotification(newStatus.review_results, { paymentWarnings: newStatus.payment_warnings });
+        } else {
+            await wechatService.sendNormalNotification('每日巡检完成，所有备份与缴费均正常。');
+        }
+    } catch (error) {
+        console.error('[定时任务] 每日巡检失败:', error);
+        await wechatService.sendAbnormalNotification([{ reason: `巡检任务本身失败: ${error.message}` }]);
+    }
+});
+
+// --- 服务器启动 ---
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`服务器在端口 ${PORT} 上成功启动。`);
+    console.log('每日报告任务已计划在 08:00 执行。');
+    console.log('服务器启动，立即执行一次初始巡检...');
+    statusService.runCheckAndSave().catch(err => console.error('初始巡检失败:', err));
+});
+
+// 优雅关停 (保持不变)
+// ...

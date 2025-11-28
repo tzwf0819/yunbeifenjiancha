@@ -1,103 +1,233 @@
 const ObsClient = require('esdk-obs-nodejs');
-const { loadConfig } = require('./config.service');
 
-/**
- * 创建并返回一个配置好的OBS客户端实例
- * @returns {ObsClient}
- */
-const getObsClient = () => {
-    const config = loadConfig();
-    const { ak, sk, endpoint } = config.huawei_obs;
+let obsClientInstance;
+const SCHEDULE_TOLERANCE_MINUTES = 45;
+const HOURS_24_IN_MS = 24 * 60 * 60 * 1000;
 
-    if (!ak || !sk || !endpoint) {
-        throw new Error('OBS配置不完整 (AK, SK, 或 Endpoint 缺失)，请在管理后台配置！');
+const ensureContents = (data) => (Array.isArray(data?.Contents) ? data.Contents : []);
+
+// 获取OBS客户端单例
+const getObsClient = (config) => {
+    if (!config) {
+        throw new Error('[OBS服务] 未获取到任何OBS配置。');
     }
 
-    return new ObsClient({
-        access_key_id: ak,
-        secret_access_key: sk,
-        server: endpoint,
+    const { ak, sk, endpoint, server, bucket_name } = config;
+    const resolvedServer = server || endpoint;
+
+    if (!ak || !sk || !resolvedServer || !bucket_name) {
+        throw new Error('[OBS服务] OBS客户端配置不完整，无法初始化。');
+    }
+
+    if (!obsClientInstance) {
+        obsClientInstance = new ObsClient({
+            access_key_id: ak,
+            secret_access_key: sk,
+            server: resolvedServer
+        });
+    }
+
+    return obsClientInstance;
+};
+
+// [已重构] 从文件名解析时间戳
+const parseTimeFromFilename = (filename = '') => {
+    const match = filename.match(/_(\d{8}_\d{6})_/);
+    if (!match) return null;
+    const timestamp = match[1];
+    const [datePart, timePart] = timestamp.split('_');
+    const year = datePart.substring(0, 4);
+    const month = datePart.substring(4, 6);
+    const day = datePart.substring(6, 8);
+    const hour = timePart.substring(0, 2);
+    const minute = timePart.substring(2, 4);
+    const second = timePart.substring(4, 6);
+    return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+};
+
+const parseScheduleTimes = (times) => {
+    if (!times) return [];
+    return times.split(',').map(str => str.trim()).filter(Boolean);
+};
+
+const computeSlotDate = (timeStr, now) => {
+    const [hour, minute] = timeStr.split(':').map(num => parseInt(num, 10));
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+    const candidate = new Date(now);
+    candidate.setSeconds(0, 0);
+    candidate.setHours(hour, minute, 0, 0);
+    if (candidate > now) {
+        candidate.setDate(candidate.getDate() - 1);
+    }
+    return candidate;
+};
+
+const buildExpectedSlots = (db, now) => {
+    const scheduleTimes = parseScheduleTimes(db.times);
+    if (scheduleTimes.length) {
+        return scheduleTimes.map((timeStr) => {
+            const expectedAt = computeSlotDate(timeStr, now);
+            return expectedAt ? { label: timeStr, expectedAt } : null;
+        }).filter(Boolean);
+    }
+
+    if (db.backup_frequency === '每小时一次') {
+        const slots = [];
+        for (let i = 0; i < 6; i += 1) {
+            const slotDate = new Date(now.getTime() - i * 60 * 60 * 1000);
+            const label = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
+            slots.push({ label, expectedAt: slotDate });
+        }
+        return slots;
+    }
+
+    return [{ label: '最近24小时', expectedAt: new Date(now.getTime() - HOURS_24_IN_MS) }];
+};
+
+const evaluateSlotCoverage = (slots, files) => {
+    const toleranceMs = SCHEDULE_TOLERANCE_MINUTES * 60 * 1000;
+    const usedIndexes = new Set();
+    const missingSlots = [];
+
+    slots.forEach((slot) => {
+        const matchedIndex = files.findIndex((file, index) => {
+            if (usedIndexes.has(index)) return false;
+            const timestamp = file.parsedTime || file.lastModified;
+            return Math.abs(timestamp - slot.expectedAt) <= toleranceMs;
+        });
+
+        if (matchedIndex >= 0) {
+            usedIndexes.add(matchedIndex);
+        } else {
+            missingSlots.push(slot.label);
+        }
     });
+
+    return missingSlots;
 };
 
-/**
- * 从文件名中解析日期时间
- * @param {string} filename - 文件名
- * @returns {Date|null}
- */
-const parseTimeFromFilename = (filename) => {
-    const regex = /_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.bak$/;
-    const match = filename.match(regex);
-    if (match) {
-        const [, year, month, day, hour, minute, second] = match;
-        return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`); // 假设为UTC时间
-    }
-    return null;
-};
+// [已重构] 检查数据库备份状态
+const checkDatabaseBackup = async (client, bucketName, task, db) => {
+    console.log(`[OBS巡检-开始] 任务: '${task.name}', 数据库: '${db.name}'`);
+    const folderPrefix = `${task.folder}/`;
+    const dbFilePrefix = `${db.name}_`;
 
+    console.log(`[OBS巡检-参数] 存储桶: '${bucketName}', 文件夹前缀: '${folderPrefix}', 文件名前缀: '${dbFilePrefix}'`);
 
-/**
- * 检查单个数据库的备份状态
- * @param {ObsClient} obsClient - OBS客户端实例
- * @param {string} bucketName - 存储桶名称
- * @param {object} task - 任务对象
- * @param {object} db - 数据库对象
- * @returns {Promise<object>} 检查结果
- */
-const checkDatabaseBackup = async (obsClient, bucketName, task, db) => {
-    const { folder } = task;
-    const { prefix, times } = db;
-    const fullPrefix = `${folder}/${prefix}`;
+    const listing = await client.listObjects({ Bucket: bucketName, Prefix: folderPrefix });
+    const now = new Date();
+    
+    const allObjects = ensureContents(listing.InterfaceResult);
+    console.log(`[OBS巡检-原始列表] 在 '${folderPrefix}' 下找到 ${allObjects.length} 个对象。`);
+    allObjects.forEach(obj => console.log(` - 原始对象: ${obj.Key}`));
 
-    try {
-        const result = await obsClient.listObjects({ Bucket: bucketName, Prefix: fullPrefix });
+    const bakFiles = allObjects
+        .filter(obj => {
+            if (!obj.Key.endsWith('.bak')) {
+                console.log(`[OBS巡检-过滤] ${obj.Key} -> 跳过 (不是 .bak 文件)`);
+                return false;
+            }
+            const filename = obj.Key.substring(folderPrefix.length);
+            const isMatch = filename.startsWith(dbFilePrefix);
+            console.log(`[OBS巡检-过滤] 文件: '${filename}', 是否匹配前缀 '${dbFilePrefix}': ${isMatch}`);
+            return isMatch;
+        })
+        .map(obj => ({
+            key: obj.Key,
+            lastModified: new Date(obj.LastModified),
+            parsedTime: parseTimeFromFilename(obj.Key)
+        }))
+        .sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
+        
+    console.log(`[OBS巡检-结果] 找到 ${bakFiles.length} 个匹配的备份文件。`);
 
-        if (result.CommonMsg.Status >= 300) {
-            // 提供最详细的错误信息
-            const errorDetail = `Code: ${result.CommonMsg.Code}, Message: ${result.CommonMsg.Message}, RequestId: ${result.CommonMsg.RequestId}`;
-            throw new Error(`OBS API请求失败: ${errorDetail}`);
-        }
-
-        const files = result.InterfaceResult.Contents
-            .filter(f => f.Key.endsWith('.bak'))
-            .map(f => ({
-                name: f.Key,
-                time: parseTimeFromFilename(f.Key) || new Date(f.LastModified),
-                size: f.Size,
-            }))
-            .sort((a, b) => b.time - a.time);
-
-        if (files.length === 0) {
-            return { status: '异常', reason: '无备份文件', latest_file_name: 'N/A', latest_time: 'N/A' };
-        }
-
-        const latestFile = files[0];
-        const schedule_parts = times.split(',').filter(t => t.trim() !== '');
-        const count = schedule_parts.length > 0 ? schedule_parts.length : 1;
-        const expectedIntervalHours = (24 / count) + 4; // 增加4小时的容错缓冲
-        const timeDiffHours = (new Date() - latestFile.time) / (1000 * 60 * 60);
-
-        if (timeDiffHours > expectedIntervalHours) {
-            return {
-                status: '异常',
-                reason: `超过 ${Math.round(expectedIntervalHours)} 小时未备份`,
-                latest_file_name: require('path').basename(latestFile.name),
-                latest_time: latestFile.time.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
-            };
-        }
-
+    if (!bakFiles.length) {
         return {
-            status: '正常',
-            reason: '备份在预期时间内',
-            latest_file_name: require('path').basename(latestFile.name),
-            latest_time: latestFile.time.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+            status: '异常',
+            reason: '未发现任何备份文件',
+            latest_file_name: 'N/A',
+            latest_time: 'N/A',
+            expected_slots: [],
+            missing_slots: []
         };
+    }
 
-    } catch (error) {
-        console.error(`[OBS服务错误] 检查存储桶 '${bucketName}' 的前缀 '${fullPrefix}' 时失败:`, error);
-        // 将原始错误信息传递出去，以便上层可以捕获
-        throw new Error(`检查OBS时发生底层错误: ${error.message}`);
+    const slots = buildExpectedSlots(db, now);
+    const missingSlots = evaluateSlotCoverage(slots, bakFiles);
+    const latestFile = bakFiles[0];
+    const latestDate = latestFile.parsedTime || latestFile.lastModified;
+    const hoursSinceLatest = (now - latestDate) / (1000 * 3600);
+
+    let status = '正常';
+    let reason = '备份正常';
+
+    if (missingSlots.length) {
+        status = '异常';
+        reason = `缺少计划时间：${missingSlots.join(', ')}`;
+    } else if (db.backup_frequency === '每小时一次' && hoursSinceLatest > 2) {
+        status = '异常';
+        reason = `距离上次备份超过 ${hoursSinceLatest.toFixed(1)} 小时`;
+    } else if (hoursSinceLatest > 30) {
+        status = '异常';
+        reason = `超过 ${Math.round(hoursSinceLatest)} 小时未备份`;
+    }
+
+    return {
+        status,
+        reason,
+        latest_file_name: latestFile.key.split('/').pop(),
+        latest_time: new Date(latestDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
+        expected_slots: slots.map(slot => slot.label),
+        missing_slots: missingSlots
+    };
+};
+
+// [已重构] 清理旧备份
+const pruneOldBackups = async (client, bucketName, task, db, retentionCount) => {
+    const retention = parseInt(retentionCount, 10);
+    if (Number.isNaN(retention) || retention <= 0) {
+        console.log(`[OBS清理] 任务 '${task.name}' 数据库 '${db.name}' 的保留数量 (${retentionCount}) 无效或未设置，跳过清理。`);
+        return;
+    }
+
+    const folderPrefix = `${task.folder}/`;
+    const dbFilePrefix = `${db.name}_`;
+
+    const listing = await client.listObjects({ Bucket: bucketName, Prefix: folderPrefix });
+    const bakFiles = ensureContents(listing.InterfaceResult).filter(obj => {
+        if (!obj.Key.endsWith('.bak')) return false;
+        const filename = obj.Key.substring(folderPrefix.length);
+        return filename.startsWith(dbFilePrefix);
+    });
+
+    if (bakFiles.length <= retention) {
+        console.log(`[OBS清理] 检查数据库 '${db.name}' 的文件数量 (${bakFiles.length})，保留数量为 (${retention})，无需清理。`);
+        return;
+    }
+
+    bakFiles.sort((a, b) => (parseTimeFromFilename(a.Key) || new Date(a.LastModified)) - (parseTimeFromFilename(b.Key) || new Date(b.LastModified)));
+    const filesToDelete = bakFiles.slice(0, bakFiles.length - retention);
+
+    if (filesToDelete.length > 0) {
+        console.log(`[OBS清理] 文件夹 '${folderPrefix}${db.name}' 发现 ${filesToDelete.length} 个旧备份文件需要删除...`);
+        await client.deleteObjects({
+            Bucket: bucketName,
+            Objects: filesToDelete.map(f => ({ Key: f.Key }))
+        });
+        console.log(`[OBS清理] 成功删除 ${filesToDelete.length} 个旧备份文件。`);
     }
 };
 
-module.exports = { getObsClient, checkDatabaseBackup };
+// [已重构] 获取任务文件列表
+const listTaskFiles = async (client, bucketName, folder) => {
+    const listing = await client.listObjects({ Bucket: bucketName, Prefix: folder });
+    return ensureContents(listing.InterfaceResult)
+        .filter(obj => obj.Key.endsWith('.bak'))
+        .map(obj => ({
+            key: obj.Key,
+            size: obj.Size,
+            lastModified: new Date(obj.LastModified).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+        }));
+};
+
+module.exports = { getObsClient, checkDatabaseBackup, pruneOldBackups, listTaskFiles };

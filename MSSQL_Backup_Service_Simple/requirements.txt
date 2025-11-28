@@ -1,8 +1,7 @@
-# MSSQL数据库备份服务依赖包
-# 核心依赖
-psutil>=5.9.0
-pyodbc>=4.0.0
-esdk-obs-python>=3.20.0
+# 核心备份逻辑依赖
+requests
+esdk-obs-python
 
 # Windows服务依赖
-pywin32>=300
+# 注意: 这个库有时需要使用 `pip install pypiwin32` 来安装
+pywin32
