@@ -321,6 +321,7 @@ class BackupTaskRunner:
     
     def check_and_execute(self):
         """服务主循环调用的唯一入口"""
+        self._reload_local_settings() # 在每个周期的开始重新加载本地配置
         try:
             status_url = f"{self.server_url}/api/tasks/{self.task_id}/status"
             response = requests.get(status_url, timeout=10)
