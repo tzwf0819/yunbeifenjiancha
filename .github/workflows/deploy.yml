@@ -52,9 +52,6 @@ jobs:
             docker build -t $IMAGE_NAME .
             echo "--- [SUCCESS] Docker image build process completed. ---"
 
-            echo "--- [DEBUG] Verifying built image: ---"
-            docker images | grep $IMAGE_NAME
-
             # 停止并移除旧容器
             echo "--- [ACTION] Stopping and removing old container if it exists... ---"
             docker stop $CONTAINER_NAME || echo "--- [INFO] No running container to stop."
