@@ -1,0 +1,18 @@
+# 忽略Node.js的依赖目录
+node_modules
+
+# 忽略NPM的调试日志
+npm-debug.log
+
+# 忽略本地环境变量文件
+# 这非常重要，可以确保容器使用生产环境的变量
+.env
+.env.*
+
+# 忽略项目自身的文档和配置文件
+README.md
+.gitignore
+
+# 忽略Docker相关的文件，避免在构建时产生混淆
+Dockerfile
+.dockerignore
