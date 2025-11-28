@@ -1,4 +1,4 @@
-name: Deploy Backup Manager
+name: Deploy via Docker Build on Server
 
 on:
   push:
@@ -14,9 +14,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Remove node_modules before copying
-        run: rm -rf node_modules
-
       - name: Copy project files to server
         uses: appleboy/scp-action@master
         with:
@@ -25,63 +22,45 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           source: "."
           target: "/www/wwwroot/yidabackup"
+          rm: true # 在复制前清空目标目录
 
-      - name: Setup and run application on server
+      - name: Build and Deploy on Server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
-            # --------------------------------------------------------------------------
-            # 设置Node.js环境，解决 'npm: command not found' 问题
-            # --------------------------------------------------------------------------
-            echo "--- Setting up Node.js environment ---"
-            # 优先尝试加载 NVM (Node Version Manager)
-            export NVM_DIR="$HOME/.nvm"
-            if [ -s "$NVM_DIR/nvm.sh" ]; then
-              . "$NVM_DIR/nvm.sh"
-              echo "NVM loaded."
-            else
-              # 如果NVM不存在，则尝试加载其他通用的配置文件
-              echo "NVM not found, trying other profile files..."
-              if [ -f "$HOME/.bash_profile" ]; then
-                . "$HOME/.bash_profile"
-              elif [ -f "$HOME/.bashrc" ]; then
-                . "$HOME/.bashrc"
-              elif [ -f "$HOME/.profile" ]; then
-                . "$HOME/.profile"
-              fi
-            fi
-
-            # 检查node和npm是否可用
-            node -v
-            npm -v
-            # --------------------------------------------------------------------------
-
-            # 进入新项目的目录
+            # 进入项目目录
             cd /www/wwwroot/yidabackup
-            echo "--- Current directory: $(pwd) ---"
 
-            # 从 GitHub Secrets 创建 .env 文件
-            echo "--- Creating .env file ---"
-            echo "ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}" > .env
-            echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> .env
-            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-            echo "HUAWEI_OBS_AK=${{ secrets.HUAWEI_OBS_AK }}" >> .env
-            echo "HUAWEI_OBS_SK=${{ secrets.HUAWEI_OBS_SK }}" >> .env
-            echo "WECHAT_CORP_ID=${{ secrets.WECHAT_CORP_ID }}" >> .env
-            echo "WECHAT_AGENT_ID=${{ secrets.WECHAT_AGENT_ID }}" >> .env
-            echo "WECHAT_SECRET=${{ secrets.WECHAT_SECRET }}" >> .env
-            echo "--- .env file created ---"
+            # 定义容器和镜像的本地名称
+            CONTAINER_NAME=yida-backup-manager
+            IMAGE_NAME=yida-backup-manager-image:latest
 
-            # 安装依赖
-            echo "--- Starting npm install (using Taobao registry) ---"
-            npm install --production --registry=https://registry.npmmirror.com
-            echo "--- npm install completed ---"
+            # 在服务器上直接构建 Docker 镜像
+            echo "--- Building Docker image on server... ---"
+            docker build -t $IMAGE_NAME .
 
-            # 使用 PM2 启动或重启应用
-            echo "--- Starting application with PM2 ---"
-            # 确保服务器上已全局安装 pm2: npm install -g pm2
-            PORT=11451 pm2 startOrRestart ecosystem.config.js
-            echo "--- Deployment script finished ---"
+            # 停止并删除已存在的同名容器
+            echo "--- Stopping and removing old container... ---"
+            docker stop $CONTAINER_NAME || true
+            docker rm $CONTAINER_NAME || true
+
+            # 启动新容器
+            echo "--- Starting new container... ---"
+            docker run -d \
+              --name $CONTAINER_NAME \
+              --restart always \
+              -p 11451:3000 \
+              -e ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
+              -e ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
+              -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
+              -e HUAWEI_OBS_AK='${{ secrets.HUAWEI_OBS_AK }}' \
+              -e HUAWEI_OBS_SK='${{ secrets.HUAWEI_OBS_SK }}' \
+              -e WECHAT_CORP_ID='${{ secrets.WECHAT_CORP_ID }}' \
+              -e WECHAT_AGENT_ID='${{ secrets.WECHAT_AGENT_ID }}' \
+              -e WECHAT_SECRET='${{ secrets.WECHAT_SECRET }}' \
+              $IMAGE_NAME
+            
+            echo "--- Deployment finished successfully! ---"
