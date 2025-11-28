@@ -14,6 +14,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Remove node_modules before copying
+        run: rm -rf node_modules
+
       - name: Copy project files to server
         uses: appleboy/scp-action@master
         with:
@@ -22,7 +25,6 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           source: "."
           target: "/www/wwwroot/yidabackup"
-          exclude: "**/node_modules/**"
 
       - name: Setup and run application on server
         uses: appleboy/ssh-action@master
