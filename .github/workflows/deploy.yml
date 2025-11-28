@@ -31,36 +31,55 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
-            # 进入项目目录
-            cd /www/wwwroot/yidabackup
+            set -e # 如果任何命令失败，立即退出脚本
+            set -x # 打印出所有执行的命令，便于调试
 
-            # 定义容器和镜像的本地名称
+            echo "--- [DEBUG] Starting deployment on server ---"
+
+            # 导航到工作目录
+            cd /www/wwwroot/yidabackup
+            echo "--- [DEBUG] Current directory: $(pwd) ---"
+
+            echo "--- [DEBUG] Listing files in current directory: ---"
+            ls -la
+
+            # 定义名称
             CONTAINER_NAME=yida-backup-manager
             IMAGE_NAME=yida-backup-manager-image:latest
 
-            # 在服务器上直接构建 Docker 镜像
-            echo "--- Building Docker image on server... ---"
+            # 构建镜像
+            echo "--- [ACTION] Building Docker image... ---"
             docker build -t $IMAGE_NAME .
+            echo "--- [SUCCESS] Docker image build process completed. ---"
 
-            # 停止并删除已存在的同名容器
-            echo "--- Stopping and removing old container... ---"
-            docker stop $CONTAINER_NAME || true
-            docker rm $CONTAINER_NAME || true
+            echo "--- [DEBUG] Verifying built image: ---"
+            docker images | grep $IMAGE_NAME
 
-            # 核心修复：确保主机上的 config.json 文件在挂载前一定存在
+            # 停止并移除旧容器
+            echo "--- [ACTION] Stopping and removing old container if it exists... ---"
+            docker stop $CONTAINER_NAME || echo "--- [INFO] No running container to stop."
+            docker rm $CONTAINER_NAME || echo "--- [INFO] No container to remove."
+
+            # 检查并创建 config.json
             CONFIG_FILE=/www/wwwroot/yidabackup/config.json
+            echo "--- [DEBUG] Checking for config file at $CONFIG_FILE ---"
             if [ ! -f "$CONFIG_FILE" ]; then
-              echo "--- Host config.json not found, creating a default one. ---"
-              echo '{"huawei_obs":{},"tasks":[]}' > "$CONFIG_FILE"
+              echo "--- [ACTION] config.json not found. Creating a default file. ---"
+              # 创建一个包含所有必需键的、更完整的默认配置
+              echo '{"huawei_obs":{},"wechat_app":{},"tasks":[]}' > "$CONFIG_FILE"
+              echo "--- [DEBUG] Content of new config.json: ---"
+              cat $CONFIG_FILE
+            else
+              echo "--- [INFO] Existing config.json found. ---"
             fi
 
-            # 启动新容器
-            echo "--- Starting new container... ---"
+            # 启动新容器 (已移除错误注释)
+            echo "--- [ACTION] Starting new container '$CONTAINER_NAME' from image '$IMAGE_NAME'... ---"
             docker run -d \
               --name $CONTAINER_NAME \
               --restart always \
               -p 11451:3000 \
-              -v /www/wwwroot/yidabackup/config.json:/app/config.json \ # 核心：挂载主机配置文件到容器
+              -v /www/wwwroot/yidabackup/config.json:/app/config.json \
               -e ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
               -e ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
               -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
@@ -70,5 +89,14 @@ jobs:
               -e WECHAT_AGENT_ID='${{ secrets.WECHAT_AGENT_ID }}' \
               -e WECHAT_SECRET='${{ secrets.WECHAT_SECRET }}' \
               $IMAGE_NAME
-            
-            echo "--- Deployment finished successfully! ---"
+
+            echo "--- [INFO] Waiting 5 seconds for container to initialize... ---"
+            sleep 5
+
+            echo "--- [DEBUG] Checking status of recent containers: ---"
+            docker ps -a -n 10
+
+            echo "--- [DEBUG] Displaying logs for '$CONTAINER_NAME' (if it exists): ---"
+            docker logs $CONTAINER_NAME || echo "--- [INFO] Container '$CONTAINER_NAME' not found or has no logs."
+
+            echo "--- [SUCCESS] Deployment script finished. ---"
