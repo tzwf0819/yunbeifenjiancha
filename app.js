@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const mustacheExpress = require('mustache-express');
 const schedule = require('node-schedule');

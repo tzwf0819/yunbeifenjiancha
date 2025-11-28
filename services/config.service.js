@@ -57,19 +57,44 @@ const normalizeConfig = (config = defaultConfig) => ({
 });
 
 /**
- * 加载配置文件
+ * 加载配置文件，并从环境变量注入敏感信息
  * @returns {object} 配置对象
  */
 const loadConfig = () => {
-    if (!fs.existsSync(CONFIG_PATH)) return normalizeConfig(defaultConfig);
-    try {
-        const fileContent = fs.readFileSync(CONFIG_PATH, 'utf8');
-        const savedConfig = JSON.parse(fileContent);
-        return normalizeConfig(savedConfig);
-    } catch (error) {
-        console.error('读取或解析config.json失败:', error);
-        return normalizeConfig(defaultConfig);
+    let savedConfig;
+    if (!fs.existsSync(CONFIG_PATH)) {
+        savedConfig = defaultConfig;
+    } else {
+        try {
+            const fileContent = fs.readFileSync(CONFIG_PATH, 'utf8');
+            savedConfig = JSON.parse(fileContent);
+        } catch (error) {
+            console.error('读取或解析config.json失败:', error);
+            savedConfig = defaultConfig;
+        }
     }
+
+    // 从环境变量注入敏感信息
+    const finalConfig = normalizeConfig(savedConfig);
+
+    finalConfig.huawei_obs.ak = process.env.HUAWEI_OBS_AK || '';
+    finalConfig.huawei_obs.sk = process.env.HUAWEI_OBS_SK || '';
+
+    finalConfig.wechat_app.corp_id = process.env.WECHAT_CORP_ID || '';
+    finalConfig.wechat_app.agent_id = process.env.WECHAT_AGENT_ID || '';
+    finalConfig.wechat_app.secret = process.env.WECHAT_SECRET || '';
+
+    // 为每个任务的数据库注入密码
+    finalConfig.tasks.forEach(task => {
+        if (task.name && Array.isArray(task.databases)) {
+            task.databases.forEach(db => {
+                const envVarName = `DB_PASS_${task.name.toUpperCase()}`;
+                db.pass = process.env[envVarName] || '';
+            });
+        }
+    });
+
+    return finalConfig;
 };
 
 /**

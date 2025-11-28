@@ -1,14 +1,9 @@
 {
   "huawei_obs": {
     "bucket_name": "yidianjicheng-backeup",
-    "ak": "JGMRCZ08USSPRCK3DIBK",
-    "sk": "QpmlQ5Otukjd05geRDHPt847hH2Fxt4yQiYOJgVM",
     "endpoint": "obs.cn-north-4.myhuaweicloud.com"
   },
   "wechat_app": {
-    "corp_id": "ww70c10ba506f8a96f",
-    "agent_id": "1000003",
-    "secret": "aRAWS8Fw1LPnyn7QCsFjsdS29dhY6p4DynQFVXjGZP4",
     "touser": "WeiShaoYan"
   },
   "tasks": [
@@ -20,16 +15,11 @@
       "remark2": "",
       "requires_payment": true,
       "payment_due_date": "2025-11-29",
-      "emergency_backup": "completed",
-      "last_error": null,
-      "last_status_update": "2025-11-28T12:15:00.840Z",
       "databases": [
         {
-          "prefix": "yidaruanjian",
           "name": "yidaruanjian",
           "server": "localhost",
           "user": "sa",
-          "pass": "shaoyansa",
           "times": "12:30,12:35,12:40",
           "backup_frequency": "每日三次",
           "retention_count": 3
