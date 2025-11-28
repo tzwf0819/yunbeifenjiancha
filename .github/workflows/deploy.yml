@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'MSSQL_Backup_Service_Simple/**'
 
 jobs:
   deploy:
