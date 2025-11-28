@@ -47,6 +47,13 @@ jobs:
             docker stop $CONTAINER_NAME || true
             docker rm $CONTAINER_NAME || true
 
+            # 核心修复：确保主机上的 config.json 文件在挂载前一定存在
+            CONFIG_FILE=/www/wwwroot/yidabackup/config.json
+            if [ ! -f "$CONFIG_FILE" ]; then
+              echo "--- Host config.json not found, creating a default one. ---"
+              echo '{"huawei_obs":{},"tasks":[]}' > "$CONFIG_FILE"
+            fi
+
             # 启动新容器
             echo "--- Starting new container... ---"
             docker run -d \
