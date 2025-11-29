@@ -43,36 +43,21 @@ jobs:
             echo "--- [DEBUG] Listing files in current directory: ---"
             ls -la
 
-            # --- [核心改造-云原生配置] 从OBS拉取最新的配置文件 ---
-            # 不再使用公共读的wget，改用官方工具 obsutil 进行认证下载
-            OBSUTIL_DIR="obsutil_install"
-            OBSUTIL_PATH="$OBSUTIL_DIR/obsutil"
+            # --- [核心改造-Python下载] 使用我们自己的Python脚本进行认证下载 ---
+            # 1. 设置Python环境
+            echo "--- [ACTION] Setting up Python environment... ---"
+            # 通常CI/CD环境都预装了Python和pip
+            
+            # 2. 安装华为云OBS Python SDK
+            echo "--- [ACTION] Installing Huawei OBS Python SDK... ---"
+            pip install esdk-obs-python
 
-            # 1. 下载并解压 obsutil (如果不存在)
-            if [ ! -f "$OBSUTIL_PATH" ]; then
-              echo "--- [ACTION] obsutil not found. Downloading and extracting... ---"
-              mkdir -p $OBSUTIL_DIR
-              # [修复] 添加User-Agent，伪装成浏览器请求，绕过服务器的防盗链策略
-              wget --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" \
-                -O $OBSUTIL_DIR/obsutil.tar.gz https://obs-community.obs.cn-north-1.myhuaweicloud.com/obsutil/latest/obsutil_linux_amd64.tar.gz
-              tar -xvf $OBSUTIL_DIR/obsutil.tar.gz -C $OBSUTIL_DIR
-              # 解压后会有一个带版本的目录，我们需要找到它并把里面的工具移出来
-              mv $OBSUTIL_DIR/obsutil_linux_amd64_*/obsutil $OBSUTIL_PATH
-              chmod +x $OBSUTIL_PATH
-            else
-              echo "--- [INFO] obsutil already exists. Skipping download. ---"
-            fi
-
-            # 2. 使用AK/SK配置obsutil
-            echo "--- [ACTION] Configuring obsutil with credentials... ---"
-            # 注意：obs的endpoint不带https://
-            OBS_ENDPOINT="obs.cn-north-4.myhuaweicloud.com"
-            $OBSUTIL_PATH config -i=${{ secrets.HUAWEI_OBS_AK }} -k=${{ secrets.HUAWEI_OBS_SK }} -e=$OBS_ENDPOINT
-
-            # 3. 使用obsutil下载配置文件
-            echo "--- [ACTION] Downloading latest config from OBS using obsutil... ---"
-            $OBSUTIL_PATH cp obs://yidianjicheng-backeup/config/config.json config.json --force
-            echo "--- [SUCCESS] Latest config.json downloaded. ---"
+            # 3. 执行Python下载脚本，并通过环境变量安全地传递密钥
+            echo "--- [ACTION] Executing Python script to download config... ---"
+            HUAWEI_OBS_AK=${{ secrets.HUAWEI_OBS_AK }} \
+            HUAWEI_OBS_SK=${{ secrets.HUAWEI_OBS_SK }} \
+            python download_config.py
+            echo "--- [SUCCESS] Python script finished. Latest config.json should be in place. ---"
 
             # 定义名称
             CONTAINER_NAME=yida-backup-manager
