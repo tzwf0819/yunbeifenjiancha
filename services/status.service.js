@@ -119,23 +119,40 @@ const runCheckAndSave = async () => {
 };
 
 /**
- * 从 status.json 加载最新的巡检状态
+ * [核心修复] 从 status.json 加载最新的巡检状态，并确保返回的结构永远是完整的
  */
 const loadStatus = () => {
+    const defaultStatus = {
+        review_results: [],
+        tasks: [], // 确保tasks数组永远存在
+        payment_warnings: [],
+        last_updated: '从未'
+    };
+
     try {
-        if (fs.existsSync(STATUS_FILE_PATH)) {
-            const data = fs.readFileSync(STATUS_FILE_PATH, 'utf8');
-            const parsed = JSON.parse(data);
-            return {
-                review_results: parsed.review_results || [],
-                payment_warnings: parsed.payment_warnings || [],
-                last_updated: parsed.last_updated || '从未'
-            };
+        if (!fs.existsSync(STATUS_FILE_PATH)) {
+            return defaultStatus;
         }
+
+        const data = fs.readFileSync(STATUS_FILE_PATH, 'utf8');
+        if (!data) { // 文件存在但内容为空
+            return defaultStatus;
+        }
+
+        const parsed = JSON.parse(data);
+        
+        // 确保返回的对象结构永远完整
+        return {
+            ...defaultStatus,
+            ...parsed,
+            tasks: parsed.tasks || [], // 即使解析出的对象没有tasks属性，也保证它是个数组
+            review_results: parsed.review_results || []
+        };
+
     } catch (error) {
         console.error('[状态服务] 读取或解析 status.json 文件失败:', error);
+        return defaultStatus; // 发生任何错误都返回一个安全的默认对象
     }
-    return { review_results: [], payment_warnings: [], last_updated: '从未' };
 };
 
 module.exports = { runCheckAndSave, loadStatus };
