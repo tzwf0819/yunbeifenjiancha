@@ -51,7 +51,7 @@ const respondUnauthorized = (req, res, message) => {
 };
 
 /**
- * 验证Web前端用户的JWT Token (更健壮的版本)
+ * 验证Web前端用户的JWT Token (同步版本，修复无限循环问题)
  */
 const webAuth = (req, res, next) => {
     try {
@@ -61,16 +61,15 @@ const webAuth = (req, res, next) => {
             return respondUnauthorized(req, res, 'Access Denied: Missing authentication token.');
         }
 
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-            if (err) {
-                return respondUnauthorized(req, res, 'Invalid or expired token.');
-            }
-            req.user = user;
-            return next();
-        });
+        // 使用同步的 try...catch 模式来验证Token
+        const user = jwt.verify(token, JWT_SECRET);
+        req.user = user;
+        return next(); // 只有在验证成功时才调用 next()
 
     } catch (error) {
-        return respondUnauthorized(req, res, 'Bad Request: An unexpected error occurred while processing authentication.');
+        // 任何错误 (无论是token缺失、无效、过期，还是其他解析错误) 都会被这里捕获
+        // 然后将用户重定向到登录页面，并终止后续操作
+        return respondUnauthorized(req, res, 'Invalid or expired token.');
     }
 };
 
