@@ -22,7 +22,7 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           source: "."
           target: "/www/wwwroot/yidabackup"
-          rm: true # 在复制前清空目标目录
+          rm: true
 
       - name: Build and Deploy on Server
         uses: appleboy/ssh-action@master
@@ -31,60 +31,31 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
-            set -e # 如果任何命令失败，立即退出脚本
-            set -x # 打印出所有执行的命令，便于调试
+            set -e
+            set -x
 
-            echo "--- [DEBUG] Starting deployment on server ---"
-
-            # 导航到工作目录
             cd /www/wwwroot/yidabackup
-            echo "--- [DEBUG] Current directory: $(pwd) ---"
 
-            echo "--- [DEBUG] Listing files in current directory: ---"
-            ls -la
-
-            # [最终方案] 不再在CI/CD中处理配置，交由应用本身在启动时“自愈”
-            # 定义名称
             CONTAINER_NAME=yida-backup-manager
             IMAGE_NAME=yida-backup-manager-image:latest
 
-            # 构建镜像
-            echo "--- [ACTION] Building Docker image... ---"
             docker build -t $IMAGE_NAME .
-            echo "--- [SUCCESS] Docker image build process completed. ---"
 
-            # 停止并移除旧容器
-            echo "--- [ACTION] Stopping and removing old container if it exists... ---"
-            docker stop $CONTAINER_NAME || echo "--- [INFO] No running container to stop."
-            docker rm $CONTAINER_NAME || echo "--- [INFO] No container to remove."
+            docker stop $CONTAINER_NAME || echo "Container not found, continuing..."
+            docker rm $CONTAINER_NAME || echo "Container not found, continuing..."
 
-            # --- [核心修复] 数据持久化 --- 
-            # 1. 定义永久配置文件路径 (独立于会被CI/CD擦写的代码目录)
-            PERSISTENT_CONFIG_DIR=/etc/yidabackup
-            PERSISTENT_CONFIG_FILE=$PERSISTENT_CONFIG_DIR/config.json
-
-            # 2. 确保永久目录存在
-            echo "--- [ACTION] Ensuring persistent config directory exists at $PERSISTENT_CONFIG_DIR ... ---"
-            mkdir -p $PERSISTENT_CONFIG_DIR
-
-            # 3. 如果永久配置文件不存在，则创建一份默认的。这仅在首次部署时发生。
-            echo "--- [DEBUG] Checking for persistent config file at $PERSISTENT_CONFIG_FILE ... ---"
-            if [ ! -f "$PERSISTENT_CONFIG_FILE" ]; then
-              echo "--- [ACTION] Persistent config file not found. Creating a default one. ---"
-              echo '{"huawei_obs":{},"wechat_app":{},"tasks":[]}' > "$PERSISTENT_CONFIG_FILE"
-              echo "--- [DEBUG] Content of new persistent config.json: ---"
-              cat "$PERSISTENT_CONFIG_FILE"
-            else
-              echo "--- [INFO] Existing persistent config file found. No changes made. ---"
+            # [回滚] 检查本地的 config.json, 如果不存在，就创建一个空的
+            CONFIG_FILE=/www/wwwroot/yidabackup/config.json
+            if [ ! -f "$CONFIG_FILE" ]; then
+              echo '{"huawei_obs":{},"wechat_app":{},"tasks":[]}' > "$CONFIG_FILE"
             fi
 
-            # 启动新容器 (挂载位于永久路径的配置文件)
-            echo "--- [ACTION] Starting new container '$CONTAINER_NAME' from image '$IMAGE_NAME'... ---"
+            # [回滚] 使用最简单的后台模式运行
             docker run -d \
               --name $CONTAINER_NAME \
               --restart always \
               -p 11451:3000 \
-              -v $PERSISTENT_CONFIG_FILE:/app/config.json \
+              -v $CONFIG_FILE:/app/config.json \
               -e ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
               -e ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
               -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
@@ -95,13 +66,4 @@ jobs:
               -e WECHAT_SECRET='${{ secrets.WECHAT_SECRET }}' \
               $IMAGE_NAME
 
-            echo "--- [INFO] Waiting 5 seconds for container to initialize... ---"
-            sleep 5
-
-            echo "--- [DEBUG] Checking status of recent containers: ---"
-            docker ps -a -n 10
-
-            echo "--- [DEBUG] Displaying logs for '$CONTAINER_NAME' (if it exists): ---"
-            docker logs $CONTAINER_NAME || echo "--- [INFO] Container '$CONTAINER_NAME' not found or has no logs."
-
-            echo "--- [SUCCESS] Deployment script finished. ---"
+            echo "Deployment finished."
