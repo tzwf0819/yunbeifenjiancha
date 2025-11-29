@@ -15,7 +15,7 @@ const getWechatToken = async () => {
         return cachedToken;
     }
 
-    const config = loadConfig();
+    const config = await loadConfig(); // [已重构] 异步加载配置
     const { corp_id, secret } = config.wechat_app;
 
     if (!corp_id || !secret) {
@@ -64,7 +64,7 @@ const getWechatToken = async () => {
  * 发送企业微信文本消息
  */
 const sendWechatMessage = async (token, content) => {
-    const config = loadConfig();
+    const config = await loadConfig(); // [已重构] 异步加载配置
     const { agent_id, touser } = config.wechat_app;
 
     if (!agent_id || !touser) {
