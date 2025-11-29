@@ -52,7 +52,7 @@ jobs:
             if [ ! -f "$OBSUTIL_PATH" ]; then
               echo "--- [ACTION] obsutil not found. Downloading and extracting... ---"
               mkdir -p $OBSUTIL_DIR
-              wget -O $OBSUTIL_DIR/obsutil.tar.gz https://obs-community.obs.cn-north-1.myhuaweicloud.com/obsutil/lastest/obsutil_linux_amd64.tar.gz
+              wget -O $OBSUTIL_DIR/obsutil.tar.gz https://obs-community.obs.cn-north-1.myhuaweicloud.com/obsutil/latest/obsutil_linux_amd64.tar.gz
               tar -xvf $OBSUTIL_DIR/obsutil.tar.gz -C $OBSUTIL_DIR
               # 解压后会有一个带版本的目录，我们需要找到它并把里面的工具移出来
               mv $OBSUTIL_DIR/obsutil_linux_amd64_*/obsutil $OBSUTIL_PATH
