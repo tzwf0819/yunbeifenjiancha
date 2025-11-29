@@ -4,7 +4,6 @@ const obsService = require('../services/obs.service');
 const wechatService = require('../services/wechat.service');
 const taskService = require('../services/task.service');
 
-// [云原生配置] 异步获取完整配置
 exports.getConfig = async (req, res) => {
     try {
         const config = await configService.loadConfig();
@@ -14,7 +13,6 @@ exports.getConfig = async (req, res) => {
     }
 };
 
-// [云原生配置] 异步保存完整配置
 exports.saveConfig = async (req, res) => {
     try {
         await configService.saveConfig(req.body);
@@ -24,27 +22,24 @@ exports.saveConfig = async (req, res) => {
     }
 };
 
-// 获取单个任务所需的完整配置（供Python客户端使用）
-exports.getTaskConfig = (req, res) => {
+exports.getTaskConfig = async (req, res) => {
     try {
-        const payload = taskService.getTaskConfigPayload(req.params.id);
+        const payload = await taskService.getTaskConfigPayload(req.params.id);
         res.json(payload);
     } catch (error) {
         res.status(404).json({ message: error.message });
     }
 };
 
-// 获取最新巡检状态 (给Dashboard用)
 exports.getSystemStatus = (req, res) => {
     res.json(statusService.loadStatus());
 };
 
-// 手动触发一次完整的巡检
 exports.runManualCheck = async (req, res) => {
     console.log(`[API控制器] 收到手动触发巡检任务的请求...`);
     try {
         const newStatus = await statusService.runCheckAndSave();
-        const hasErrors = newStatus.review_results.some(r => r.status === '异常');
+        const hasErrors = (newStatus.review_results || []).some(r => r.status === '异常');
         const hasPaymentWarnings = (newStatus.payment_warnings || []).length > 0;
         if (hasErrors || hasPaymentWarnings) {
             await wechatService.sendAbnormalNotification(newStatus.review_results, { paymentWarnings: newStatus.payment_warnings });
@@ -58,39 +53,26 @@ exports.runManualCheck = async (req, res) => {
     }
 };
 
-// 获取单个任务的最新状态 (给Python客户端用)
-exports.getTaskStatus = (req, res) => {
+exports.getTaskStatus = async (req, res) => {
     const { id } = req.params;
     const statusData = statusService.loadStatus();
-    const taskResult = statusData.review_results.find(r => r.task_id === id);
+    const taskResult = (statusData.review_results || []).find(r => r.task_id === id);
 
     try {
-        const taskMeta = taskService.getTaskMeta(id);
+        const taskMeta = await taskService.getTaskMeta(id);
         return res.json({
             ...(taskResult || { status: 'not_found', task_id: id }),
-            emergency_backup: taskMeta.emergency_backup || 'idle',
-            last_error: taskMeta.last_error || null,
-            requires_payment: Boolean(taskMeta.requires_payment),
-            payment_due_date: taskMeta.payment_due_date || null,
-            last_status_update: taskMeta.last_status_update || null
+            ...taskMeta
         });
     } catch (error) {
         if (taskResult) {
-            return res.json({
-                ...taskResult,
-                emergency_backup: 'idle',
-                last_error: null,
-                requires_payment: false,
-                payment_due_date: null,
-                last_status_update: null
-            });
+            return res.json(taskResult);
         }
         return res.status(404).json({ status: 'not_found', message: error.message });
     }
 };
 
-// 更新单个任务的状态 (供前端触发紧急备份，或Python客户端回写状态)
-exports.updateTaskStatus = (req, res) => {
+exports.updateTaskStatus = async (req, res) => {
     const { id } = req.params;
     const { status, reason } = req.body || {};
 
@@ -99,30 +81,21 @@ exports.updateTaskStatus = (req, res) => {
     }
 
     try {
-        const updatedTask = taskService.setEmergencyStatus(id, status, reason);
+        const updatedTask = await taskService.setEmergencyStatus(id, status, reason);
+        // 触发一个异步的、无需等待的巡检来更新状态
         statusService.runCheckAndSave().catch(err => console.error('异步巡检失败:', err));
-        return res.json({
-            success: true,
-            task: {
-                id: updatedTask.id,
-                emergency_backup: updatedTask.emergency_backup,
-                last_error: updatedTask.last_error,
-                last_status_update: updatedTask.last_status_update
-            }
-        });
+        return res.json({ success: true, task: updatedTask });
     } catch (error) {
         return res.status(400).json({ success: false, message: error.message });
     }
 };
 
-// [云原生配置] 异步获取任务文件列表
 exports.getTaskFiles = async (req, res) => {
     const { id } = req.params;
     try {
         const config = await configService.loadConfig();
-        // [已修复] 将配置传递给 getObsClient
         const client = obsService.getObsClient(config.huawei_obs);
-        const task = config.tasks.find(t => t.id === id);
+        const task = (config.tasks || []).find(t => t.id === id);
         if (!task) {
             return res.status(404).json({ message: '任务未找到' });
         }
@@ -134,8 +107,7 @@ exports.getTaskFiles = async (req, res) => {
     }
 };
 
-// Python客户端上报失败信息
-exports.reportTaskFailure = (req, res) => {
+exports.reportTaskFailure = async (req, res) => {
     const { id } = req.params;
     const { error: errorMessage } = req.body || {};
 
@@ -144,33 +116,18 @@ exports.reportTaskFailure = (req, res) => {
     }
 
     try {
-        const updatedTask = taskService.recordTaskFailure(id, errorMessage);
-        res.json({
-            success: true,
-            task: {
-                id: updatedTask.id,
-                last_error: updatedTask.last_error,
-                last_status_update: updatedTask.last_status_update
-            }
-        });
+        const updatedTask = await taskService.recordTaskFailure(id, errorMessage);
+        res.json({ success: true, task: updatedTask });
     } catch (error) {
         res.status(404).json({ success: false, message: error.message });
     }
 };
 
-// Python客户端在紧急备份完成后调用
-exports.completeEmergencyBackup = (req, res) => {
+exports.completeEmergencyBackup = async (req, res) => {
     const { id } = req.params;
     try {
-        const updatedTask = taskService.completeEmergencyBackup(id);
-        res.json({
-            success: true,
-            task: {
-                id: updatedTask.id,
-                emergency_backup: updatedTask.emergency_backup,
-                last_status_update: updatedTask.last_status_update
-            }
-        });
+        const updatedTask = await taskService.completeEmergencyBackup(id);
+        res.json({ success: true, task: updatedTask });
     } catch (error) {
         res.status(404).json({ success: false, message: error.message });
     }
