@@ -43,22 +43,7 @@ jobs:
             echo "--- [DEBUG] Listing files in current directory: ---"
             ls -la
 
-            # --- [核心改造-Python下载] 使用我们自己的Python脚本进行认证下载 ---
-            # 1. 设置Python环境
-            echo "--- [ACTION] Setting up Python environment... ---"
-            # 通常CI/CD环境都预装了Python和pip
-            
-            # 2. 安装华为云OBS Python SDK
-            echo "--- [ACTION] Installing Huawei OBS Python SDK... ---"
-            pip install esdk-obs-python
-
-            # 3. 执行Python下载脚本，并通过环境变量安全地传递密钥
-            echo "--- [ACTION] Executing Python script to download config... ---"
-            HUAWEI_OBS_AK=${{ secrets.HUAWEI_OBS_AK }} \
-            HUAWEI_OBS_SK=${{ secrets.HUAWEI_OBS_SK }} \
-            python download_config.py
-            echo "--- [SUCCESS] Python script finished. Latest config.json should be in place. ---"
-
+            # [最终方案] 不再在CI/CD中处理配置，交由应用本身在启动时“自愈”
             # 定义名称
             CONTAINER_NAME=yida-backup-manager
             IMAGE_NAME=yida-backup-manager-image:latest

@@ -1,18 +1,55 @@
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
-const axios = require('axios'); // 引入 axios 用于下载
-const { getObsClient } = require('./obs.service'); // 引入 OBS 服务用于上传
+const { ObsClient } = require('esdk-obs-nodejs');
 
-// --- [核心改造] 云端配置的单一事实来源 (Single Source of Truth) ---
-const CLOUD_CONFIG_URL = 'https://yidianjicheng-backeup.obs.cn-north-4.myhuaweicloud.com/config/config.json';
-const CLOUD_CONFIG_OBJECT_KEY = 'config/config.json'; // OBS对象键
+const CONFIG_PATH = path.join(__dirname, '..', 'config.json');
 
-// 本地缓存路径，作为网络失败时的安全回退
-const LOCAL_CACHE_PATH = path.join(__dirname, '..', 'config.cache.json');
+// --- [最终方案] 云端配置的单一事实来源 ---
+const CLOUD_CONFIG_BUCKET = 'yidianjicheng-backeup';
+const CLOUD_CONFIG_OBJECT_KEY = 'config/config.json';
 
-// 内存中的配置缓存，避免重复的文件IO
+// 内存中的配置缓存
 let memoryCache = null;
+
+// [最终方案] Node.js实现的、核心的下载函数
+const downloadConfigFromObs = async () => {
+    let obsClient;
+    try {
+        const ak = process.env.HUAWEI_OBS_AK;
+        const sk = process.env.HUAWEI_OBS_SK;
+        const server = 'https://obs.cn-north-4.myhuaweicloud.com';
+
+        if (!ak || !sk) {
+            throw new Error('环境变量 HUAWEI_OBS_AK 和 HUAWEI_OBS_SK 未设置。');
+        }
+
+        console.log('[配置服务-自愈] 正在初始化OBS客户端...');
+        obsClient = new ObsClient({ access_key_id: ak, secret_access_key: sk, server });
+
+        console.log(`[配置服务-自愈] 正在从OBS下载配置文件: ${CLOUD_CONFIG_BUCKET}/${CLOUD_CONFIG_OBJECT_KEY}`)
+        const resp = await obsClient.getObject({
+            Bucket: CLOUD_CONFIG_BUCKET,
+            Key: CLOUD_CONFIG_OBJECT_KEY,
+            SaveToFile: CONFIG_PATH 
+        });
+
+        if (resp.CommonMsg.Status >= 300) {
+            throw new Error(`OBS下载失败，状态码: ${resp.CommonMsg.Status}, 消息: ${resp.CommonMsg.Message}`);
+        }
+
+        console.log('[配置服务-自愈] 成功从OBS下载并保存了最新的配置文件。');
+        return true;
+
+    } catch (error) {
+        console.error('[配置服务-自愈] 从OBS下载配置文件时发生严重错误:', error);
+        return false;
+    } finally {
+        if (obsClient) {
+            obsClient.close();
+        }
+    }
+};
 
 // --- 标准化逻辑 (保持不变) ---
 const defaultConfig = {
@@ -20,49 +57,21 @@ const defaultConfig = {
     wechat_app: { corp_id: '', agent_id: '', secret: '', touser: '' },
     tasks: []
 };
-
-const normalizeDatabaseConfig = (database = {}) => ({
-    ...database,
-    retention_count: typeof database.retention_count === 'number'
-        ? database.retention_count
-        : parseInt(database.retention_count, 10) || 0
-});
-
+const normalizeDatabaseConfig = (database = {}) => ({...database, retention_count: parseInt(database.retention_count, 10) || 0});
 const normalizeTaskConfig = (task = {}) => {
     const normalized = { ...task };
-    normalized.databases = Array.isArray(task.databases)
-        ? task.databases.map(normalizeDatabaseConfig)
-        : [];
-
-    if (!normalized.id) {
-        normalized.id = crypto.randomUUID();
-    }
-    if (!normalized.emergency_backup) {
-        normalized.emergency_backup = 'idle';
-    }
-    if (typeof normalized.requires_payment !== 'boolean') {
-        normalized.requires_payment = false;
-    }
-    if (typeof normalized.last_error === 'undefined') {
-        normalized.last_error = null;
-    }
-    if (!normalized.last_status_update) {
-        normalized.last_status_update = new Date().toISOString();
-    }
-    if (!normalized.folder) {
-        normalized.folder = '';
-    }
-
+    normalized.databases = Array.isArray(task.databases) ? task.databases.map(normalizeDatabaseConfig) : [];
+    if (!normalized.id) normalized.id = crypto.randomUUID();
+    if (!normalized.emergency_backup) normalized.emergency_backup = 'idle';
+    if (typeof normalized.requires_payment !== 'boolean') normalized.requires_payment = false;
+    if (typeof normalized.last_error === 'undefined') normalized.last_error = null;
+    if (!normalized.last_status_update) normalized.last_status_update = new Date().toISOString();
+    if (!normalized.folder) normalized.folder = '';
     return normalized;
 };
+const normalizeConfig = (config = defaultConfig) => ({...defaultConfig, ...config, tasks: Array.isArray(config.tasks) ? config.tasks.map(normalizeTaskConfig) : []});
 
-const normalizeConfig = (config = defaultConfig) => ({
-    ...defaultConfig,
-    ...config,
-    tasks: Array.isArray(config.tasks) ? config.tasks.map(normalizeTaskConfig) : []
-});
-
-// [核心改造] 从云端加载配置，带本地缓存和失败回退
+// [最终方案] “自愈式”的配置加载函数
 const loadConfig = async () => {
     if (memoryCache) {
         return memoryCache;
@@ -70,21 +79,26 @@ const loadConfig = async () => {
 
     let configData;
     try {
-        console.log(`[配置服务] 尝试从云端加载配置: ${CLOUD_CONFIG_URL}`);
-        const response = await axios.get(CLOUD_CONFIG_URL, { timeout: 10000 });
-        configData = response.data;
-        console.log('[配置服务] 成功从云端加载配置，正在更新本地缓存...');
-        await fs.writeFile(LOCAL_CACHE_PATH, JSON.stringify(configData, null, 2), 'utf8');
-    } catch (cloudError) {
-        console.warn(`[配置服务] 从云端加载配置失败: ${cloudError.message}`);
-        console.log('[配置服务] 正在尝试从本地缓存加载...');
-        try {
-            const cachedContent = await fs.readFile(LOCAL_CACHE_PATH, 'utf8');
-            configData = JSON.parse(cachedContent);
-            console.log('[配置服务] 成功从本地缓存加载配置。');
-        } catch (cacheError) {
-            console.error(`[配置服务] 从本地缓存加载也失败: ${cacheError.message}`);
-            console.log('[配置服务] 将使用默认的空配置。');
+        const fileContent = await fs.readFile(CONFIG_PATH, 'utf8');
+        if (!fileContent) throw new Error('配置文件为空。');
+        configData = JSON.parse(fileContent);
+        console.log('[配置服务] 成功从本地加载配置文件。');
+    } catch (localError) {
+        console.warn(`[配置服务] 从本地加载配置失败: ${localError.message}`);
+        console.log('[配置服务] 启动“自愈”流程，尝试从OBS下载...');
+        
+        const downloadSuccess = await downloadConfigFromObs();
+        
+        if (downloadSuccess) {
+            try {
+                const fileContent = await fs.readFile(CONFIG_PATH, 'utf8');
+                configData = JSON.parse(fileContent);
+            } catch (retryError) {
+                console.error('[配置服务] 下载后重试加载依然失败，将使用默认空配置:', retryError);
+                configData = defaultConfig;
+            }
+        } else {
+            console.error('[配置服务] “自愈”流程失败，将使用默认空配置。');
             configData = defaultConfig;
         }
     }
@@ -102,51 +116,41 @@ const loadConfig = async () => {
     return finalConfig;
 };
 
-// [核心改造] 保存配置到本地缓存和云端
+// [最终方案] 保存配置到本地和云端
 const saveConfig = async (config) => {
     const configToPersist = normalizeConfig(config);
-    
-    // 1. 更新内存缓存
     memoryCache = configToPersist;
+    await fs.writeFile(CONFIG_PATH, JSON.stringify(configToPersist, null, 2), 'utf8');
 
-    // 2. 异步写入本地缓存
-    const writeToCachePromise = fs.writeFile(LOCAL_CACHE_PATH, JSON.stringify(configToPersist, null, 2), 'utf8');
-
-    // 3. 异步上传到OBS
-    const uploadToCloudPromise = (async () => {
+    // 异步上传到OBS (无需等待，在后台执行)
+    (async () => {
+        let obsClient;
         try {
-            const obsClient = getObsClient(configToPersist.huawei_obs);
-            const bucketName = configToPersist.huawei_obs.bucket_name;
+            const ak = configToPersist.huawei_obs.ak || process.env.HUAWEI_OBS_AK;
+            const sk = configToP sist.huawei_obs.sk || process.env.HUAWEI_OBS_SK;
 
-            if (!bucketName) {
-                throw new Error('OBS存储桶名称未在配置中提供。');
+            if (!ak || !sk) {
+                console.warn('[配置服务-保存] 无法获取OBS凭证，跳过上传。');
+                return;
             }
-            
-            // OBS SDK 需要一个本地文件路径来上传，所以我们先确保本地缓存已写入
-            await writeToCachePromise; 
 
-            console.log(`[配置服务] 准备将最新配置上传到OBS: ${bucketName}/${CLOUD_CONFIG_OBJECT_KEY}`);
-            const resp = await obsClient.putFile(bucketName, CLOUD_CONFIG_OBJECT_KEY, LOCAL_CACHE_PATH);
-
+            obsClient = new ObsClient({ access_key_id: ak, secret_access_key: sk, server: 'https://obs.cn-north-4.myhuaweicloud.com' });
+            const resp = await obsClient.putFile({
+                Bucket: CLOUD_CONFIG_BUCKET,
+                Key: CLOUD_CONFIG_OBJECT_KEY,
+                SourceFile: CONFIG_PATH
+            });
             if (resp.CommonMsg.Status < 300) {
-                console.log('[配置服务] 成功将配置同步到云端。');
+                console.log('[配置服务-保存] 成功将配置同步到云端。');
             } else {
-                throw new Error(`OBS返回错误: ${resp.CommonMsg.Status}`);
+                throw new Error(`OBS上传失败，状态码: ${resp.CommonMsg.Status}`);
             }
         } catch (error) {
-            console.error(`[配置服务] 同步配置到云端失败:`, error);
-            // 即使上传失败，也不应该阻塞用户的保存操作，因为本地缓存已经成功
+            console.error('[配置服务-保存] 同步配置到云端时出错:', error);
+        } finally {
+            if (obsClient) obsClient.close();
         }
     })();
-
-    // 等待两个异步操作完成
-    try {
-        await Promise.all([writeToCachePromise, uploadToCloudPromise]);
-    } catch (error) {
-        // 主要捕获本地写入失败的错误
-        console.error('保存配置到本地缓存时发生严重错误:', error);
-        throw new Error('无法写入本地配置文件缓存');
-    }
 };
 
 module.exports = { loadConfig, saveConfig };
