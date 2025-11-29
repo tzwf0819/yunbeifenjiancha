@@ -94,7 +94,7 @@ class MSSQLScheduledBackupSvc(win32serviceutil.ServiceFramework):
             if not os.path.exists(settings_path):
                 return None
             config = configparser.ConfigParser()
-            config.read(settings_path, encoding='utf-8')
+            config.read(settings_path, encoding='utf-8-sig')
             return config.get('BACKUP_CLIENT', 'task_id', fallback=None)
         except Exception as e:
             servicemanager.LogErrorMsg(f"读取 task_id 出错: {e}")

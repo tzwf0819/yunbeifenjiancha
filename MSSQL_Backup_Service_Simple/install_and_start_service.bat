@@ -48,17 +48,17 @@ echo 旧服务清理完毕。
 echo.
 
 
-echo --- 步骤 3/5: 安装依赖并自动配置 pywin32 ---
+echo --- 步骤 3/5: 安装依赖并手动配置 pywin32 ---
 echo.
 echo [1/3] 正在从 requirements.txt 安装依赖...
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 if %errorlevel% neq 0 (
     echo 警告：从 requirements.txt 安装依赖时出现问题，但脚本将继续。
 )
 echo.
 
 echo [2/3] 正在确保 pywin32 已正确安装...
-pip install --upgrade pywin32
+python -m pip install --upgrade pywin32
 if %errorlevel% neq 0 (
     echo.
     echo 错误：安装 pywin32 失败。请检查您的网络和 Python 环境。
@@ -67,35 +67,37 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [3/3] 正在自动运行 pywin32 安装后修复程序...
-set "PYTHON_SCRIPTS_PATH="
+echo [3/3] 正在手动执行 pywin32 环境配置 (替代 postinstall 脚本)...
+set "PYTHON_ROOT_PATH="
 for /f "delims=" %%i in ('where python') do (
-    if not defined PYTHON_SCRIPTS_PATH (
-        for %%j in ("%%i") do (
-            set "PYTHON_SCRIPTS_PATH=%%~dpjScripts"
-        )
-    )
+    if not defined PYTHON_ROOT_PATH ( for %%j in ("%%i") do ( set "PYTHON_ROOT_PATH=%%~dpj" ) )
 )
 
-if not defined PYTHON_SCRIPTS_PATH (
-    echo 错误：无法定位到 Python 的 Scripts 目录。自动配置失败。
+if not defined PYTHON_ROOT_PATH (
+    echo 错误：无法定位到 Python 的根目录。手动配置失败。
     pause
     exit /b
 )
 
-if not exist "%PYTHON_SCRIPTS_PATH%\pywin32_postinstall.py" (
-    echo 错误：在 "%PYTHON_SCRIPTS_PATH%" 中找不到 pywin32_postinstall.py。
-    echo 无法自动完成配置。
+set "PYWIN32_SOURCE_DIR=%PYTHON_ROOT_PATH%Lib\site-packages\pywin32_system32"
+
+if not exist "%PYWIN32_SOURCE_DIR%\pythoncom*.dll" (
+    echo 错误：在 "%PYWIN32_SOURCE_DIR%" 中找不到 pywin32 的核心 DLL 文件。
+    echo 可能是 pywin32 安装不完整。
     pause
     exit /b
 )
 
-python "%PYTHON_SCRIPTS_PATH%\pywin32_postinstall.py" -install >nul
+echo  - 正在从 "%PYWIN32_SOURCE_DIR%"
+echo  - 复制核心 DLL 文件到 "%PYTHON_ROOT_PATH%"
+copy /Y "%PYWIN32_SOURCE_DIR%\pythoncom*.dll" "%PYTHON_ROOT_PATH%" >nul
+copy /Y "%PYWIN32_SOURCE_DIR%\pywintypes*.dll" "%PYTHON_ROOT_PATH%" >nul
+
 if %errorlevel% neq 0 (
-    echo 警告：pywin32 配置脚本执行失败。服务安装可能仍会失败。
+    echo 警告：手动复制 pywin32 DLLs 失败。服务安装可能仍会失败。
     pause
 ) else (
-    echo pywin32 配置成功！
+    echo pywin32 手动配置成功！
 )
 echo.
 

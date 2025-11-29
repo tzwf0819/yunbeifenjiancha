@@ -70,7 +70,7 @@ class BackupTaskRunner:
         config = configparser.ConfigParser()
         if not os.path.exists(self.settings_path):
             raise FileNotFoundError(f"客户端配置文件 {self.settings_path} 不存在")
-        config.read(self.settings_path, encoding='utf-8')
+        config.read(self.settings_path, encoding='utf-8-sig')
         return config
 
     def setup_logging(self):
@@ -368,6 +368,8 @@ class BackupTaskRunner:
                 if status_data.get('emergency_backup') == 'pending':
                     self.logger.info("检测到服务器端的紧急备份请求！")
                     self.execute_emergency_backup()
+                    # 只有在完成由服务器发起的紧急备份后，才通知服务器
+                    self.complete_emergency_backup()
                 else:
                     self.logger.info(f"云端状态正常 ({status_data.get('status')})，无紧急任务。")
 
