@@ -73,10 +73,10 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 app.get('/login', (req, res) => res.render('login'));
 app.get('/config', webAuth, (req, res) => res.render('config')); // config页面需要认证
 
-// [已重构] 异步 Dashboard 路由
-app.get('/dashboard', webAuth, async (req, res) => {
+// [已重构] Dashboard 路由
+app.get('/dashboard', webAuth, (req, res) => {
     try {
-        const data = await statusService.loadStatus(); // [已重构] 异步加载
+        const data = statusService.loadStatus(); // 直接从服务加载数据
         const groupedResults = groupResultsByTask(data.review_results);
         const paymentWarnings = data.payment_warnings || [];
         res.render('dashboard', { 
@@ -124,8 +124,7 @@ schedule.scheduleJob(dailyRule, async () => {
         if (hasErrors || hasPaymentWarnings) {
             await wechatService.sendAbnormalNotification(newStatus.review_results, { paymentWarnings: newStatus.payment_warnings });
         } else {
-            // [新需求] 如果没有任何异常和警告，则发送一条自定义的“好消息”
-            await wechatService.sendGoodNews("备份全部正常,今天适合开发新的代码");
+            await wechatService.sendNormalNotification('每日巡检完成，所有备份与缴费均正常。');
         }
     } catch (error) {
         console.error('[定时任务] 每日巡检失败:', error);
@@ -134,16 +133,11 @@ schedule.scheduleJob(dailyRule, async () => {
 });
 
 // --- 服务器启动 ---
-const server = app.listen(PORT, '0.0.0.0', async () => { // [已重构] 异步启动
+const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`服务器在端口 ${PORT} 上成功启动。`);
     console.log('每日报告任务已计划在 08:30 (北京时间) 执行。');
     console.log('服务器启动，立即执行一次初始巡检...');
-    try {
-        await statusService.runCheckAndSave();
-        console.log('初始巡检成功完成。');
-    } catch(err) {
-        console.error('初始巡检失败:', err);
-    }
+    statusService.runCheckAndSave().catch(err => console.error('初始巡检失败:', err));
 });
 
 // 优雅关停 (保持不变)

@@ -1,4 +1,4 @@
-const fs = require('fs').promises; // [已重构] 使用 fs.promises API
+const fs = require('fs');
 const path = require('path');
 const obsService = require('./obs.service');
 const configService = require('./config.service');
@@ -42,14 +42,14 @@ const buildResultRecord = (task, db, backupResult) => ({
  */
 const runCheckAndSave = async () => {
     console.log('[状态服务] 开始执行完整巡检并保存状态...');
-    const config = await configService.loadConfig(); // [已重构] 异步加载
+    const config = configService.loadConfig();
     const bucketName = config.huawei_obs.bucket_name;
     const now = new Date();
 
     if (!bucketName) {
         console.warn('[状态服务] OBS存储桶名称未配置，跳过巡检。');
         const emptyStatus = { review_results: [], payment_warnings: [], last_updated: new Date().toLocaleString('zh-CN') };
-        await fs.writeFile(STATUS_FILE_PATH, JSON.stringify(emptyStatus, null, 4)); // [已重构] 异步写入
+        fs.writeFileSync(STATUS_FILE_PATH, JSON.stringify(emptyStatus, null, 4));
         return emptyStatus;
     }
 
@@ -109,7 +109,7 @@ const runCheckAndSave = async () => {
     };
 
     try {
-        await fs.writeFile(STATUS_FILE_PATH, JSON.stringify(newStatus, null, 4)); // [已重构] 异步写入
+        fs.writeFileSync(STATUS_FILE_PATH, JSON.stringify(newStatus, null, 4));
         console.log('[状态服务] 成功将最新巡检结果保存到 status.json。');
     } catch (error) {
         console.error('[状态服务] 写入 status.json 文件失败:', error);
@@ -119,21 +119,20 @@ const runCheckAndSave = async () => {
 };
 
 /**
- * [已重构] 异步从 status.json 加载最新的巡检状态
+ * 从 status.json 加载最新的巡检状态
  */
-const loadStatus = async () => {
+const loadStatus = () => {
     try {
-        const data = await fs.readFile(STATUS_FILE_PATH, 'utf8'); // [已重构] 异步读取
-        const parsed = JSON.parse(data);
-        return {
-            review_results: parsed.review_results || [],
-            payment_warnings: parsed.payment_warnings || [],
-            last_updated: parsed.last_updated || '从未'
-        };
-    } catch (error) {
-        if (error.code === 'ENOENT') { // 文件不存在
-            return { review_results: [], payment_warnings: [], last_updated: '从未' };
+        if (fs.existsSync(STATUS_FILE_PATH)) {
+            const data = fs.readFileSync(STATUS_FILE_PATH, 'utf8');
+            const parsed = JSON.parse(data);
+            return {
+                review_results: parsed.review_results || [],
+                payment_warnings: parsed.payment_warnings || [],
+                last_updated: parsed.last_updated || '从未'
+            };
         }
+    } catch (error) {
         console.error('[状态服务] 读取或解析 status.json 文件失败:', error);
     }
     return { review_results: [], payment_warnings: [], last_updated: '从未' };

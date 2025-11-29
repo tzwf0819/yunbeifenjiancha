@@ -15,7 +15,7 @@ const getWechatToken = async () => {
         return cachedToken;
     }
 
-    const config = await loadConfig(); // [已重构] 异步加载配置
+    const config = loadConfig();
     const { corp_id, secret } = config.wechat_app;
 
     if (!corp_id || !secret) {
@@ -64,7 +64,7 @@ const getWechatToken = async () => {
  * 发送企业微信文本消息
  */
 const sendWechatMessage = async (token, content) => {
-    const config = await loadConfig(); // [已重构] 异步加载配置
+    const config = loadConfig();
     const { agent_id, touser } = config.wechat_app;
 
     if (!agent_id || !touser) {
@@ -150,15 +150,4 @@ const sendNormalNotification = async (message = '巡检完成，一切正常。'
     await sendWechatMessage(token, payload);
 };
 
-    const payload = `【OBS备份巡检通知】\n时间：${formatTimestamp()}\n${message}`;
-    await sendWechatMessage(token, payload);
-};
-
-// [新功能] 发送一条自定义的好消息 (纯文本格式)
-const sendGoodNews = async (message) => {
-    const token = await getWechatToken();
-    const payload = `【每日份的好消息】\n${message}`;
-    await sendWechatMessage(token, payload);
-};
-
-module.exports = { getWechatToken, sendWechatMessage, sendAbnormalNotification, sendNormalNotification, sendGoodNews };
+module.exports = { getWechatToken, sendWechatMessage, sendAbnormalNotification, sendNormalNotification };
