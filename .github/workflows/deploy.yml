@@ -43,6 +43,12 @@ jobs:
             echo "--- [DEBUG] Listing files in current directory: ---"
             ls -la
 
+            # --- [核心改造-云原生配置] 从OBS拉取最新的配置文件 ---
+            CONFIG_URL="https://yidianjicheng-backeup.obs.cn-north-4.myhuaweicloud.com/config/config.json"
+            echo "--- [ACTION] Downloading latest config from OBS: $CONFIG_URL ---"
+            wget -O config.json "$CONFIG_URL"
+            echo "--- [SUCCESS] Latest config.json downloaded. ---"
+
             # 定义名称
             CONTAINER_NAME=yida-backup-manager
             IMAGE_NAME=yida-backup-manager-image:latest
