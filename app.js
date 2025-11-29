@@ -74,9 +74,9 @@ app.get('/login', (req, res) => res.render('login'));
 app.get('/config', webAuth, (req, res) => res.render('config')); // config页面需要认证
 
 // [已重构] Dashboard 路由
-app.get('/dashboard', webAuth, (req, res) => {
+app.get('/dashboard', webAuth, async (req, res) => {
     try {
-        const data = statusService.loadStatus(); // 直接从服务加载数据
+        const data = await statusService.loadStatus(); // [云原生配置] 异步加载
         const groupedResults = groupResultsByTask(data.review_results);
         const paymentWarnings = data.payment_warnings || [];
         res.render('dashboard', { 

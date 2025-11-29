@@ -4,15 +4,20 @@ const obsService = require('../services/obs.service');
 const wechatService = require('../services/wechat.service');
 const taskService = require('../services/task.service');
 
-// 获取完整配置
-exports.getConfig = (req, res) => {
-    res.json(configService.loadConfig());
+// [云原生配置] 异步获取完整配置
+exports.getConfig = async (req, res) => {
+    try {
+        const config = await configService.loadConfig();
+        res.json(config);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
-// 保存完整配置
-exports.saveConfig = (req, res) => {
+// [云原生配置] 异步保存完整配置
+exports.saveConfig = async (req, res) => {
     try {
-        configService.saveConfig(req.body);
+        await configService.saveConfig(req.body);
         res.json({ success: true, message: '配置保存成功！' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -110,11 +115,11 @@ exports.updateTaskStatus = (req, res) => {
     }
 };
 
-// 获取OBS文件列表
+// [云原生配置] 异步获取任务文件列表
 exports.getTaskFiles = async (req, res) => {
     const { id } = req.params;
     try {
-        const config = configService.loadConfig();
+        const config = await configService.loadConfig();
         // [已修复] 将配置传递给 getObsClient
         const client = obsService.getObsClient(config.huawei_obs);
         const task = config.tasks.find(t => t.id === id);

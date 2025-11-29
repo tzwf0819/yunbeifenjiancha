@@ -44,18 +44,19 @@ jobs:
             docker stop $CONTAINER_NAME || echo "Container not found, continuing..."
             docker rm $CONTAINER_NAME || echo "Container not found, continuing..."
 
-            # [回滚] 检查本地的 config.json, 如果不存在，就创建一个空的
-            CONFIG_FILE=/www/wwwroot/yidabackup/config.json
-            if [ ! -f "$CONFIG_FILE" ]; then
-              echo '{"huawei_obs":{},"wechat_app":{},"tasks":[]}' > "$CONFIG_FILE"
-            fi
+            # [云原生配置] 定义一个独立于代码目录的、用于持久化存储配置文件的路径
+            PERSISTENT_CONFIG_FILE=/etc/yidabackup/config.json
+
+            # [云原生配置] 确保这个永久目录的存在
+            mkdir -p $(dirname "$PERSISTENT_CONFIG_FILE")
 
             # [回滚] 使用最简单的后台模式运行
+            # [云原生配置] 将永久配置文件挂载到容器内部，实现配置的持久化
             docker run -d \
               --name $CONTAINER_NAME \
               --restart always \
               -p 11451:3000 \
-              -v $CONFIG_FILE:/app/config.json \
+              -v $PERSISTENT_CONFIG_FILE:/app/config.json \
               -e ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
               -e ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
               -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \

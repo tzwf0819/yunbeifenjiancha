@@ -42,7 +42,7 @@ const buildResultRecord = (task, db, backupResult) => ({
  */
 const runCheckAndSave = async () => {
     console.log('[状态服务] 开始执行完整巡检并保存状态...');
-    const config = configService.loadConfig();
+    const config = await configService.loadConfig(); // [云原生配置] 异步加载
     const bucketName = config.huawei_obs.bucket_name;
     const now = new Date();
 

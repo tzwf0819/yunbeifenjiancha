@@ -342,10 +342,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const copyTaskId = async (taskId) => {
         try {
+            // [核心修复] 优先尝试现代、安全的剪贴板API
             await navigator.clipboard.writeText(taskId);
             showMessage(`任务 ID 已复制：${taskId}`, 'success');
         } catch (error) {
-            showMessage('复制失败，请手动选择文本。', 'error');
+            // [核心修复] 如果现代API失败（例如在非https的IP地址访问时），则优雅降级到传统的 execCommand 方法
+            console.warn('navigator.clipboard.writeText failed, falling back to execCommand.', error);
+            const textArea = document.createElement("textarea");
+            textArea.value = taskId;
+            textArea.style.position = "fixed"; // 防止滚动条跳动
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showMessage(`任务 ID 已复制：${taskId}`, 'success');
+            } catch (fallbackError) {
+                console.error('Fallback execCommand failed as well.', fallbackError);
+                showMessage('复制失败，请手动选择文本。', 'error');
+            }
+            document.body.removeChild(textArea);
         }
     };
 
@@ -367,7 +384,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const refreshTaskStatus = async (taskId) => {
-        if (!taskId) return;
+        // [核心修复] 如果是尚未保存的临时任务，则直接跳过状态刷新，防止因404而引发无限循环
+        if (!taskId || taskId.startsWith('temp-')) {
+            const card = refs.taskList.querySelector(`.task-card[data-task-id="${taskId}"]`);
+            if (card) {
+                const statusChip = card.querySelector('[data-role="status-chip"]');
+                if (statusChip) {
+                    statusChip.textContent = '待保存';
+                    statusChip.className = 'status-chip pending';
+                }
+            }
+            return;
+        }
         try {
             const payload = await request(`/api/tasks/${taskId}/status`, { method: 'GET' });
             state.statusCache[taskId] = payload;
