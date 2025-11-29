@@ -57,26 +57,33 @@ jobs:
             docker stop $CONTAINER_NAME || echo "--- [INFO] No running container to stop."
             docker rm $CONTAINER_NAME || echo "--- [INFO] No container to remove."
 
-            # 检查并创建 config.json
-            CONFIG_FILE=/www/wwwroot/yidabackup/config.json
-            echo "--- [DEBUG] Checking for config file at $CONFIG_FILE ---"
-            if [ ! -f "$CONFIG_FILE" ]; then
-              echo "--- [ACTION] config.json not found. Creating a default file. ---"
-              # 创建一个包含所有必需键的、更完整的默认配置
-              echo '{"huawei_obs":{},"wechat_app":{},"tasks":[]}' > "$CONFIG_FILE"
-              echo "--- [DEBUG] Content of new config.json: ---"
-              cat $CONFIG_FILE
+            # --- [核心修复] 数据持久化 --- 
+            # 1. 定义永久配置文件路径 (独立于会被CI/CD擦写的代码目录)
+            PERSISTENT_CONFIG_DIR=/etc/yidabackup
+            PERSISTENT_CONFIG_FILE=$PERSISTENT_CONFIG_DIR/config.json
+
+            # 2. 确保永久目录存在
+            echo "--- [ACTION] Ensuring persistent config directory exists at $PERSISTENT_CONFIG_DIR ... ---"
+            mkdir -p $PERSISTENT_CONFIG_DIR
+
+            # 3. 如果永久配置文件不存在，则创建一份默认的。这仅在首次部署时发生。
+            echo "--- [DEBUG] Checking for persistent config file at $PERSISTENT_CONFIG_FILE ... ---"
+            if [ ! -f "$PERSISTENT_CONFIG_FILE" ]; then
+              echo "--- [ACTION] Persistent config file not found. Creating a default one. ---"
+              echo '{"huawei_obs":{},"wechat_app":{},"tasks":[]}' > "$PERSISTENT_CONFIG_FILE"
+              echo "--- [DEBUG] Content of new persistent config.json: ---"
+              cat "$PERSISTENT_CONFIG_FILE"
             else
-              echo "--- [INFO] Existing config.json found. ---"
+              echo "--- [INFO] Existing persistent config file found. No changes made. ---"
             fi
 
-            # 启动新容器 (已移除错误注释)
+            # 启动新容器 (挂载位于永久路径的配置文件)
             echo "--- [ACTION] Starting new container '$CONTAINER_NAME' from image '$IMAGE_NAME'... ---"
             docker run -d \
               --name $CONTAINER_NAME \
               --restart always \
               -p 11451:3000 \
-              -v /www/wwwroot/yidabackup/config.json:/app/config.json \
+              -v $PERSISTENT_CONFIG_FILE:/app/config.json \
               -e ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
               -e ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
               -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
