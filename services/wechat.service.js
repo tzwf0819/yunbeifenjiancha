@@ -15,7 +15,8 @@ const getWechatToken = async () => {
         return cachedToken;
     }
 
-    const config = loadConfig();
+    // [核心修复] 异步加载配置
+    const config = await loadConfig();
     const { corp_id, secret } = config.wechat_app;
 
     if (!corp_id || !secret) {
@@ -64,7 +65,8 @@ const getWechatToken = async () => {
  * 发送企业微信文本消息
  */
 const sendWechatMessage = async (token, content) => {
-    const config = loadConfig();
+    // [核心修复] 异步加载配置
+    const config = await loadConfig();
     const { agent_id, touser } = config.wechat_app;
 
     if (!agent_id || !touser) {
@@ -82,13 +84,10 @@ const sendWechatMessage = async (token, content) => {
             text: { content: content },
         });
 
-        // [新增诊断] 检查企业微信API的返回结果
         if (response.data && response.data.errcode === 0) {
             console.log('[企业微信服务] 消息API返回成功 (errcode: 0)。');
-            // [新增诊断] 在日志中明确打印出用于发送的参数，方便用户核对
             console.log(`[企业微信服务诊断] 本次发送使用的参数 -> AgentID: ${agent_id}, ToUser: ${touser}`);
         } else {
-            // 如果API返回了错误码，则将其作为错误抛出
             const errorInfo = response.data || { errmsg: '未知错误', errcode: 'N/A' };
             const errorMessage = `发送企业微信消息失败: ${errorInfo.errmsg} (错误码: ${errorInfo.errcode})`;
             console.error(`[企业微信服务错误] ${errorMessage}`);
