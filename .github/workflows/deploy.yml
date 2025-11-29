@@ -52,7 +52,9 @@ jobs:
             if [ ! -f "$OBSUTIL_PATH" ]; then
               echo "--- [ACTION] obsutil not found. Downloading and extracting... ---"
               mkdir -p $OBSUTIL_DIR
-              wget -O $OBSUTIL_DIR/obsutil.tar.gz https://obs-community.obs.cn-north-1.myhuaweicloud.com/obsutil/latest/obsutil_linux_amd64.tar.gz
+              # [修复] 添加User-Agent，伪装成浏览器请求，绕过服务器的防盗链策略
+              wget --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" \
+                -O $OBSUTIL_DIR/obsutil.tar.gz https://obs-community.obs.cn-north-1.myhuaweicloud.com/obsutil/latest/obsutil_linux_amd64.tar.gz
               tar -xvf $OBSUTIL_DIR/obsutil.tar.gz -C $OBSUTIL_DIR
               # 解压后会有一个带版本的目录，我们需要找到它并把里面的工具移出来
               mv $OBSUTIL_DIR/obsutil_linux_amd64_*/obsutil $OBSUTIL_PATH
