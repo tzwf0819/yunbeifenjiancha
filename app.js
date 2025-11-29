@@ -109,7 +109,13 @@ const handleLogin = (req, res) => {
 app.post(['/api/login', '/login-api'], handleLogin);
 
 // --- 定时任务 [已重构] ---
-schedule.scheduleJob('0 8 * * *', async () => {
+// 创建一个定时规则，并明确指定时区为亚洲/上海 (UTC+8)
+const dailyRule = new schedule.RecurrenceRule();
+dailyRule.hour = 8;
+dailyRule.minute = 30; // 用户期望的 8:30
+dailyRule.tz = 'Asia/Shanghai';
+
+schedule.scheduleJob(dailyRule, async () => {
     console.log(`[定时任务] 开始执行每日巡检...`);
     try {
         const newStatus = await statusService.runCheckAndSave();
@@ -118,7 +124,8 @@ schedule.scheduleJob('0 8 * * *', async () => {
         if (hasErrors || hasPaymentWarnings) {
             await wechatService.sendAbnormalNotification(newStatus.review_results, { paymentWarnings: newStatus.payment_warnings });
         } else {
-            await wechatService.sendNormalNotification('每日巡检完成，所有备份与缴费均正常。');
+            // [新需求] 如果没有任何异常和警告，则发送一条自定义的“好消息”
+            await wechatService.sendGoodNews("备份全部正常,今天适合开发新的代码");
         }
     } catch (error) {
         console.error('[定时任务] 每日巡检失败:', error);
@@ -129,7 +136,7 @@ schedule.scheduleJob('0 8 * * *', async () => {
 // --- 服务器启动 ---
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`服务器在端口 ${PORT} 上成功启动。`);
-    console.log('每日报告任务已计划在 08:00 执行。');
+    console.log('每日报告任务已计划在 08:30 (北京时间) 执行。');
     console.log('服务器启动，立即执行一次初始巡检...');
     statusService.runCheckAndSave().catch(err => console.error('初始巡检失败:', err));
 });

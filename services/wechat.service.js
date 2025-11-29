@@ -150,4 +150,15 @@ const sendNormalNotification = async (message = '巡检完成，一切正常。'
     await sendWechatMessage(token, payload);
 };
 
-module.exports = { getWechatToken, sendWechatMessage, sendAbnormalNotification, sendNormalNotification };
+    const payload = `【OBS备份巡检通知】\n时间：${formatTimestamp()}\n${message}`;
+    await sendWechatMessage(token, payload);
+};
+
+// [新功能] 发送一条自定义的好消息 (纯文本格式)
+const sendGoodNews = async (message) => {
+    const token = await getWechatToken();
+    const payload = `【每日份的好消息】\n${message}`;
+    await sendWechatMessage(token, payload);
+};
+
+module.exports = { getWechatToken, sendWechatMessage, sendAbnormalNotification, sendNormalNotification, sendGoodNews };
