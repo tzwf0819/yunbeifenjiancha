@@ -36,6 +36,36 @@ class BackupTaskRunner:
         self.api_headers = {'Content-Type': 'application/json'}
 
     # --- 配置和状态管理 ---
+
+    def _reload_local_settings(self):
+        """重新加载本地 settings.ini 文件并动态更新实例状态，实现热重载。"""
+        try:
+            # 在服务初始化早期，logger可能尚未存在，需要进行防御性检查
+            logger = self.logger if hasattr(self, 'logger') and self.logger else logging.getLogger(__name__)
+            
+            new_settings = self.load_settings()
+            # 从新配置中安全地获取 task_id
+            new_task_id = new_settings.get('BACKUP_CLIENT', 'task_id', fallback=None)
+
+            # 仅当 task_id 存在且发生变化时，才执行热更新逻辑
+            if new_task_id and self.task_id != new_task_id:
+                logger.info(f"检测到 task_id 从 '{self.task_id}' 变更为 '{new_task_id}'。正在更新服务状态...")
+                self.task_id = new_task_id
+                self.settings = new_settings # 关键：更新整个 settings 对象
+                self.server_url = self.settings.get('BACKUP_CLIENT', 'server_url')
+                
+                # task_id 变更后，需要更新日志记录器以使用新的日志文件，并强制刷新云端配置
+                self.setup_logging()
+                # 强制刷新配置，因为任务ID已经改变
+                self.fetch_config(force_refresh=True)
+        except Exception as e:
+            # 保证即使在最糟糕的情况下也能记录下错误
+            if 'logger' in locals() and logger:
+                logger.error(f"热重载 settings.ini 失败: {e}", exc_info=True)
+            else:
+                logging.error(f"热重载 settings.ini 失败 (logger不可用): {e}", exc_info=True)
+
+
     def load_settings(self):
         config = configparser.ConfigParser()
         if not os.path.exists(self.settings_path):

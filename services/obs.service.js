@@ -53,13 +53,20 @@ const parseScheduleTimes = (times) => {
 const computeSlotDate = (timeStr, now) => {
     const [hour, minute] = timeStr.split(':').map(num => parseInt(num, 10));
     if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
-    const candidate = new Date(now);
-    candidate.setSeconds(0, 0);
-    candidate.setHours(hour, minute, 0, 0);
-    if (candidate > now) {
-        candidate.setDate(candidate.getDate() - 1);
-    }
-    return candidate;
+
+    // 创建“今天”和“昨天”的候选时间点
+    const todaySlot = new Date(now);
+    todaySlot.setHours(hour, minute, 0, 0);
+
+    const yesterdaySlot = new Date(todaySlot);
+    yesterdaySlot.setDate(todaySlot.getDate() - 1);
+
+    // 计算当前时间与这两个候选时间点的差距
+    const diffToday = Math.abs(todaySlot.getTime() - now.getTime());
+    const diffYesterday = Math.abs(yesterdaySlot.getTime() - now.getTime());
+
+    // 返回离当前时间更近的那个时间点作为期望的时间点
+    return diffToday < diffYesterday ? todaySlot : yesterdaySlot;
 };
 
 const buildExpectedSlots = (db, now) => {
