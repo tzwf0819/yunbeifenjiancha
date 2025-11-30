@@ -28,12 +28,11 @@ const setEmergencyStatus = async (taskId, status, reason) => {
     task.emergency_backup = status;
     task.last_status_update = new Date().toISOString();
     
-    // 当状态被设为pending时，清除旧错误。当提供了reason时，记录新错误。
-    if (status === 'pending') {
-        task.last_error = null;
-    }
-    if (reason) {
+    // 仅当备份失败时记录错误，并在备份完成时清除错误。
+    if (status === 'failed') {
         task.last_error = reason;
+    } else if (status === 'completed' || status === 'pending') {
+        task.last_error = null;
     }
 
     // saveConfig是异步的，但我们在这里无需等待它完成

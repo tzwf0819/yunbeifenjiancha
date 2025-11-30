@@ -1,7 +1,0 @@
-# 核心备份逻辑依赖
-requests
-esdk-obs-python
-
-# Windows服务依赖
-# 注意: 这个库有时需要使用 `pip install pypiwin32` 来安装
-pywin32
