@@ -54,19 +54,20 @@ const computeSlotDate = (timeStr, now) => {
     const [hour, minute] = timeStr.split(':').map(num => parseInt(num, 10));
     if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
 
-    // 创建“今天”和“昨天”的候选时间点
+    // 创建"今天"该时间点
     const todaySlot = new Date(now);
     todaySlot.setHours(hour, minute, 0, 0);
 
-    const yesterdaySlot = new Date(todaySlot);
-    yesterdaySlot.setDate(todaySlot.getDate() - 1);
+    // 如果当前时间早于今天的备份时间点，说明今天的备份还未开始
+    // 此时应检查昨天同一时间点的备份
+    if (now < todaySlot) {
+        const yesterdaySlot = new Date(todaySlot);
+        yesterdaySlot.setDate(todaySlot.getDate() - 1);
+        return yesterdaySlot;
+    }
 
-    // 计算当前时间与这两个候选时间点的差距
-    const diffToday = Math.abs(todaySlot.getTime() - now.getTime());
-    const diffYesterday = Math.abs(yesterdaySlot.getTime() - now.getTime());
-
-    // 返回离当前时间更近的那个时间点作为期望的时间点
-    return diffToday < diffYesterday ? todaySlot : yesterdaySlot;
+    // 当前时间已过今天的备份时间点，应检查今天的备份
+    return todaySlot;
 };
 
 const buildExpectedSlots = (db, now) => {
