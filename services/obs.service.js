@@ -5,8 +5,47 @@ const SCHEDULE_TOLERANCE_MINUTES = 45;
 // 日期边界提前量：巡检时间早于备份时间点，但在此分钟数以内，仍检查今天的备份
 const SLOT_DATE_ADVANCE_MINUTES = 5;
 const HOURS_24_IN_MS = 24 * 60 * 60 * 1000;
+const SHANGHAI_OFFSET_MINUTES = 8 * 60;
+const SHANGHAI_OFFSET_MS = SHANGHAI_OFFSET_MINUTES * 60 * 1000;
 
 const ensureContents = (data) => (Array.isArray(data?.Contents) ? data.Contents : []);
+
+const getShanghaiParts = (date) => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+
+    const parts = formatter.formatToParts(date).reduce((acc, part) => {
+        if (part.type !== 'literal') {
+            acc[part.type] = part.value;
+        }
+        return acc;
+    }, {});
+
+    return {
+        year: parseInt(parts.year, 10),
+        month: parseInt(parts.month, 10),
+        day: parseInt(parts.day, 10),
+        hour: parseInt(parts.hour, 10),
+        minute: parseInt(parts.minute, 10),
+        second: parseInt(parts.second, 10)
+    };
+};
+
+const buildShanghaiDate = (year, monthIndex, day, hour, minute, second = 0) => {
+    const timestamp = Date.UTC(year, monthIndex, day, hour, minute, second) - SHANGHAI_OFFSET_MS;
+    return new Date(timestamp);
+};
+
+const shiftShanghaiDays = (date, days) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+
 
 // 获取OBS客户端单例
 const getObsClient = (config) => {
@@ -32,8 +71,7 @@ const getObsClient = (config) => {
     return obsClientInstance;
 };
 
-// [已重构] 从文件名解析时间戳
-// 注意：必须用 Date 构造函数的数字参数形式，避免字符串形式被 Node.js 当作 UTC 解析
+// [已重构] 从文件名解析时间戳（按上海时区解释）
 const parseTimeFromFilename = (filename = '') => {
     const match = filename.match(/_(\d{8}_\d{6})_/);
     if (!match) return null;
@@ -45,9 +83,9 @@ const parseTimeFromFilename = (filename = '') => {
     const hour = parseInt(timePart.substring(0, 2), 10);
     const minute = parseInt(timePart.substring(2, 4), 10);
     const second = parseInt(timePart.substring(4, 6), 10);
-    // 使用数字参数构造，Node.js 会按本地时间处理，与 computeSlotDate 中的 setHours 一致
-    return new Date(year, month, day, hour, minute, second);
+    return buildShanghaiDate(year, month, day, hour, minute, second);
 };
+
 
 const parseScheduleTimes = (times) => {
     if (!times) return [];
@@ -69,21 +107,20 @@ const computeSlotDate = (timeStr, now) => {
     const [hour, minute] = timeStr.split(':').map(num => parseInt(num, 10));
     if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
 
-    const todaySlot = new Date(now);
-    todaySlot.setHours(hour, minute, 0, 0);
+    const nowParts = getShanghaiParts(now);
+    const todaySlot = buildShanghaiDate(nowParts.year, nowParts.month - 1, nowParts.day, hour, minute, 0);
 
     const advanceMs = SLOT_DATE_ADVANCE_MINUTES * 60 * 1000;
 
     // 当前时间早于今天备份时间点超过提前量 → 备份尚未到时间 → 检查昨天
-    if (now < todaySlot - advanceMs) {
-        const yesterdaySlot = new Date(todaySlot);
-        yesterdaySlot.setDate(todaySlot.getDate() - 1);
-        return yesterdaySlot;
+    if (now.getTime() < todaySlot.getTime() - advanceMs) {
+        return shiftShanghaiDays(todaySlot, -1);
     }
 
     // 当前时间在备份时间点的5分钟以内（含已过），检查今天
     return todaySlot;
 };
+
 
 const buildExpectedSlots = (db, now) => {
     const scheduleTimes = parseScheduleTimes(db.times);
