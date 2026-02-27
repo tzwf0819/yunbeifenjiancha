@@ -33,18 +33,20 @@ const getObsClient = (config) => {
 };
 
 // [已重构] 从文件名解析时间戳
+// 注意：必须用 Date 构造函数的数字参数形式，避免字符串形式被 Node.js 当作 UTC 解析
 const parseTimeFromFilename = (filename = '') => {
     const match = filename.match(/_(\d{8}_\d{6})_/);
     if (!match) return null;
     const timestamp = match[1];
     const [datePart, timePart] = timestamp.split('_');
-    const year = datePart.substring(0, 4);
-    const month = datePart.substring(4, 6);
-    const day = datePart.substring(6, 8);
-    const hour = timePart.substring(0, 2);
-    const minute = timePart.substring(2, 4);
-    const second = timePart.substring(4, 6);
-    return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+    const year = parseInt(datePart.substring(0, 4), 10);
+    const month = parseInt(datePart.substring(4, 6), 10) - 1; // Date month 从 0 开始
+    const day = parseInt(datePart.substring(6, 8), 10);
+    const hour = parseInt(timePart.substring(0, 2), 10);
+    const minute = parseInt(timePart.substring(2, 4), 10);
+    const second = parseInt(timePart.substring(4, 6), 10);
+    // 使用数字参数构造，Node.js 会按本地时间处理，与 computeSlotDate 中的 setHours 一致
+    return new Date(year, month, day, hour, minute, second);
 };
 
 const parseScheduleTimes = (times) => {
