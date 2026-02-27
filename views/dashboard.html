@@ -108,51 +108,6 @@
     </div>
 
     <script src="/js/dashboard.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const runCheckBtn = document.getElementById('run-check-btn');
-            const message = document.getElementById('message');
-            const token = localStorage.getItem('authToken');
-
-            if (runCheckBtn) {
-                runCheckBtn.addEventListener('click', async () => {
-                    if (!token) {
-                        window.location.href = '/login';
-                        return;
-                    }
-
-                    runCheckBtn.disabled = true;
-                    runCheckBtn.textContent = '巡检中...';
-                    message.textContent = '正在触发巡检，请稍候...';
-
-                    try {
-                        const response = await fetch('/api/run-check', {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json'
-                            }
-                        });
-
-                        const result = await response.json();
-
-                        if (response.ok) {
-                            message.textContent = '巡检成功！页面即将刷新以展示最新结果...';
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 2000);
-                        } else {
-                            throw new Error(result.message || '巡检失败');
-                        }
-
-                    } catch (error) {
-                        message.textContent = `操作失败: ${error.message}`;
-                        runCheckBtn.disabled = false;
-                        runCheckBtn.textContent = '立即巡检';
-                    }
-                });
-            }
-        });
-    </script>
 </body>
 </html>
+
