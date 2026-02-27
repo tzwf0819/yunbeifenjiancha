@@ -2,6 +2,8 @@ const ObsClient = require('esdk-obs-nodejs');
 
 let obsClientInstance;
 const SCHEDULE_TOLERANCE_MINUTES = 45;
+// 日期边界提前量：巡检时间早于备份时间点，但在此分钟数以内，仍检查今天的备份
+const SLOT_DATE_ADVANCE_MINUTES = 5;
 const HOURS_24_IN_MS = 24 * 60 * 60 * 1000;
 
 const ensureContents = (data) => (Array.isArray(data?.Contents) ? data.Contents : []);
@@ -47,11 +49,20 @@ const parseTimeFromFilename = (filename = '') => {
 
 const parseScheduleTimes = (times) => {
     if (!times) return [];
-    return times.split(',').map(str => str.trim()).filter(Boolean);
+    return times.split(',').map(str => {
+        const trimmed = str.trim();
+        if (!trimmed) return null;
+        // 统一补全前导零，确保格式为 "HH:MM"，避免 "8:00" 与 "08:00" 不一致
+        const [h, m] = trimmed.split(':');
+        const hh = (h || '0').padStart(2, '0');
+        const mm = (m || '0').padStart(2, '0');
+        return `${hh}:${mm}`;
+    }).filter(Boolean);
 };
 
 // 针对单个时间点（如 "20:00"），独立判断应检查今天还是昨天
-// 逻辑：若当前时间尚未到达今天的备份时间，说明该时间点的备份还未执行，应检查昨天
+// 逻辑：若当前时间早于今天备份时间点超过5分钟，说明备份还未到时间，应检查昨天
+// 若当前时间早于备份时间点但在5分钟以内（提前量），仍检查今天（允许备份提前执行）
 const computeSlotDate = (timeStr, now) => {
     const [hour, minute] = timeStr.split(':').map(num => parseInt(num, 10));
     if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
@@ -59,14 +70,16 @@ const computeSlotDate = (timeStr, now) => {
     const todaySlot = new Date(now);
     todaySlot.setHours(hour, minute, 0, 0);
 
-    // 当前时间早于今天备份时间点 → 该备份尚未执行 → 检查昨天
-    if (now < todaySlot) {
+    const advanceMs = SLOT_DATE_ADVANCE_MINUTES * 60 * 1000;
+
+    // 当前时间早于今天备份时间点超过提前量 → 备份尚未到时间 → 检查昨天
+    if (now < todaySlot - advanceMs) {
         const yesterdaySlot = new Date(todaySlot);
         yesterdaySlot.setDate(todaySlot.getDate() - 1);
         return yesterdaySlot;
     }
 
-    // 当前时间已过今天备份时间点 → 检查今天
+    // 当前时间在备份时间点的5分钟以内（含已过），检查今天
     return todaySlot;
 };
 
