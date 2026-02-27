@@ -38,7 +38,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${(size / Math.pow(1024, index)).toFixed(1)} ${units[index]}`;
     };
 
+    const parseDateOnly = (dateStr) => {
+        if (!dateStr) return null;
+        const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) {
+            const parsed = new Date(dateStr);
+            return Number.isNaN(parsed.getTime()) ? null : parsed;
+        }
+        const year = Number(match[1]);
+        const month = Number(match[2]) - 1;
+        const day = Number(match[3]);
+        return new Date(year, month, day);
+    };
+
+    const calculateRemainingDays = (dueDateStr) => {
+        const dueDate = parseDateOnly(dueDateStr);
+        if (!dueDate) return null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        dueDate.setHours(0, 0, 0, 0);
+        return Math.ceil((dueDate - today) / (24 * 60 * 60 * 1000));
+    };
+
     const updateEmergencyStatusBar = (card, statusPayload) => {
+
         const bar = card.querySelector('.emergency-status-bar');
         if (!bar) return;
 
@@ -76,14 +99,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const updatePaymentBadge = (card, requiresPayment, dueDate) => {
         const badge = card.querySelector('.payment-badge');
         if (!badge) return;
+
+        badge.classList.remove('warning', 'overdue');
+
         if (requiresPayment) {
-            badge.textContent = dueDate ? `付费 · ${dueDate}` : '付费 · 未设置';
+            if (dueDate) {
+                const remainingDays = calculateRemainingDays(dueDate);
+                if (remainingDays !== null && remainingDays < 0) {
+                    badge.textContent = `付费 · 已逾期 ${Math.abs(remainingDays)} 天`;
+                    badge.classList.add('overdue');
+                } else if (remainingDays !== null && remainingDays <= 15) {
+                    badge.textContent = `付费 · ${dueDate}（剩余 ${remainingDays} 天）`;
+                    badge.classList.add('warning');
+                } else {
+                    badge.textContent = `付费 · ${dueDate}`;
+                }
+            } else {
+                badge.textContent = '付费 · 未设置';
+            }
             badge.style.opacity = 1;
         } else {
             badge.textContent = '免审查客户';
             badge.style.opacity = 0.9;
         }
     };
+
 
     const updateEmergencyButton = (card, statusPayload) => {
         const button = card.querySelector('.emergency-trigger-btn');

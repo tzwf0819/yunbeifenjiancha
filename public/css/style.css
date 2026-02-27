@@ -523,7 +523,20 @@ button.primary-btn {
     color: var(--accent-teal);
 }
 
+.payment-badge.warning {
+    border-color: var(--accent-amber);
+    color: var(--accent-amber);
+    background: rgba(245, 158, 11, 0.12);
+}
+
+.payment-badge.overdue {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(248, 113, 113, 0.12);
+}
+
 .task-body {
+
     padding: 1.5rem 1.75rem;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

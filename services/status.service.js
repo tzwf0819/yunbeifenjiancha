@@ -5,22 +5,81 @@ const configService = require('./config.service');
 
 const STATUS_FILE_PATH = path.join(__dirname, '../status.json');
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const PAYMENT_WARNING_DAYS = 15;
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+const getShanghaiDateParts = (date) => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+
+    const parts = formatter.formatToParts(date).reduce((acc, part) => {
+        if (part.type !== 'literal') {
+            acc[part.type] = part.value;
+        }
+        return acc;
+    }, {});
+
+    return {
+        year: parseInt(parts.year, 10),
+        month: parseInt(parts.month, 10),
+        day: parseInt(parts.day, 10)
+    };
+};
+
+const buildShanghaiDate = (year, monthIndex, day) => {
+    const timestamp = Date.UTC(year, monthIndex, day) - SHANGHAI_OFFSET_MS;
+    return new Date(timestamp);
+};
+
+const getShanghaiStartOfDay = (date) => {
+    const parts = getShanghaiDateParts(date);
+    return buildShanghaiDate(parts.year, parts.month - 1, parts.day);
+};
+
+const parseDueDate = (dateStr) => {
+    if (!dateStr) return null;
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+        const year = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        const day = parseInt(match[3], 10);
+        return buildShanghaiDate(year, month, day);
+    }
+    const parsed = new Date(dateStr);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+};
 
 const evaluatePaymentStatus = (task, now) => {
     if (!task.requires_payment) return null;
     if (!task.payment_due_date) {
         return `任务【${task.name}】未配置缴费到期日`;
     }
-    const dueDate = new Date(task.payment_due_date);
-    if (Number.isNaN(dueDate.getTime())) {
+    const dueDate = parseDueDate(task.payment_due_date);
+    if (!dueDate) {
         return `任务【${task.name}】的缴费到期日格式无效 (${task.payment_due_date})`;
     }
-    if (now <= dueDate) {
-        return null;
+
+    const nowStart = getShanghaiStartOfDay(now);
+    const dueStart = getShanghaiStartOfDay(dueDate);
+
+    if (nowStart > dueStart) {
+        const overdueDays = Math.ceil((nowStart - dueStart) / DAY_IN_MS);
+        return `任务【${task.name}】缴费已逾期 ${overdueDays} 天`;
     }
-    const overdueDays = Math.ceil((now - dueDate) / DAY_IN_MS);
-    return `任务【${task.name}】缴费逾期 ${overdueDays} 天`;
+
+    const remainingDays = Math.ceil((dueStart - nowStart) / DAY_IN_MS);
+    if (remainingDays <= PAYMENT_WARNING_DAYS) {
+        return `任务【${task.name}】缴费将于 ${task.payment_due_date} 到期（剩余 ${remainingDays} 天）`;
+    }
+
+    return null;
 };
+
 
 const buildResultRecord = (task, db, backupResult) => ({
     task_name: task.name,
