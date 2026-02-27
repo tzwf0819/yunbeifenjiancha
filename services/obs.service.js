@@ -50,28 +50,31 @@ const parseScheduleTimes = (times) => {
     return times.split(',').map(str => str.trim()).filter(Boolean);
 };
 
+// 针对单个时间点（如 "20:00"），独立判断应检查今天还是昨天
+// 逻辑：若当前时间尚未到达今天的备份时间，说明该时间点的备份还未执行，应检查昨天
 const computeSlotDate = (timeStr, now) => {
     const [hour, minute] = timeStr.split(':').map(num => parseInt(num, 10));
     if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
 
-    // 创建"今天"该时间点
     const todaySlot = new Date(now);
     todaySlot.setHours(hour, minute, 0, 0);
 
-    // 如果当前时间早于今天的备份时间点，说明今天的备份还未开始
-    // 此时应检查昨天同一时间点的备份
+    // 当前时间早于今天备份时间点 → 该备份尚未执行 → 检查昨天
     if (now < todaySlot) {
         const yesterdaySlot = new Date(todaySlot);
         yesterdaySlot.setDate(todaySlot.getDate() - 1);
         return yesterdaySlot;
     }
 
-    // 当前时间已过今天的备份时间点，应检查今天的备份
+    // 当前时间已过今天备份时间点 → 检查今天
     return todaySlot;
 };
 
 const buildExpectedSlots = (db, now) => {
     const scheduleTimes = parseScheduleTimes(db.times);
+
+    // 情况一：配置了具体备份时间点（支持多个，如 "02:00, 14:00, 20:00"）
+    // 每个时间点独立判断：检查时间已过 → 检查今天；未过 → 检查昨天
     if (scheduleTimes.length) {
         return scheduleTimes.map((timeStr) => {
             const expectedAt = computeSlotDate(timeStr, now);
@@ -79,16 +82,26 @@ const buildExpectedSlots = (db, now) => {
         }).filter(Boolean);
     }
 
+    // 情况二：每小时一次
+    // 只生成"已过去"的整点时间槽（最近6个），不包含未来时间
     if (db.backup_frequency === '每小时一次') {
         const slots = [];
+        // 从当前时间往前推，找最近的整点作为起点
+        const lastHourSlot = new Date(now);
+        lastHourSlot.setMinutes(0, 0, 0);
+        // 如果当前时间还没到整点+容差，则从上一个整点开始
+        if (now - lastHourSlot < SCHEDULE_TOLERANCE_MINUTES * 60 * 1000) {
+            lastHourSlot.setHours(lastHourSlot.getHours() - 1);
+        }
         for (let i = 0; i < 6; i += 1) {
-            const slotDate = new Date(now.getTime() - i * 60 * 60 * 1000);
-            const label = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
+            const slotDate = new Date(lastHourSlot.getTime() - i * 60 * 60 * 1000);
+            const label = `${slotDate.getHours().toString().padStart(2, '0')}:00`;
             slots.push({ label, expectedAt: slotDate });
         }
         return slots;
     }
 
+    // 情况三：兜底，检查最近24小时内是否有备份
     return [{ label: '最近24小时', expectedAt: new Date(now.getTime() - HOURS_24_IN_MS) }];
 };
 
